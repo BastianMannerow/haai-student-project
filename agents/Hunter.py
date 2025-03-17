@@ -102,44 +102,90 @@ class Hunter:
             state   {self.goal_phases[0]}Look
             =visual>
                 isa         _visual
-                value       =stimulus
-                screen_pos  =pos
-            =imaginal>
-                buffer      empty
+                value       ~None
             ==>
+            ~visual>
             =g>
-            isa     detect
-            state   detectStart
-            +imaginal>
-                isa         stored_stimulus
-                value       =stimulus
-                screen_pos  =pos
+            isa     {self.goal_phases[0]}
+            state   {self.goal_phases[0]}LookNext
             """)
 
-        actr_agent.productionstring(name="detect_target", string=f"""
-        =g>
-            isa     detect
-            state   detectStart
-        =visual>
-            isa         _visual
-            value       =stimulus
-            screen_pos  = new_pos
-        ?imaginal>
-            isa         stored_stimulus
-            value       =stimulus
-            screen_pos  = stored_pos
-        ==>
-        =g>
-            isa     {self.goal_phases[0]}
-            state   {self.goal_phases[0]}Start
-        =imaginal>
-            isa         target
-            value       =stimulus
-            screen_pos  = new_pos
-        +manual>
-            isa         _manual
-            cmd         press_key
-            key         M
-        """)
+        actr_agent.productionstring(name="detect_targetA", string=f"""
+            =g>
+                isa     {self.goal_phases[0]}
+                state   {self.goal_phases[0]}LookNext
 
+            ==>
+            =g>
+                isa     {self.goal_phases[0]}
+                state   {self.goal_phases[0]}Start
+            ?visual_location> 
+                attended False 
+            +visual_location> 
+                isa _visuallocation 
+                screen_x lowest 
+                screen_y closest
+            +manual>
+                isa     _manual
+                cmd     'press_key'
+                key     A""")
 
+        actr_agent.productionstring(name="detect_targetW", string=f"""
+            =g>
+                isa     {self.goal_phases[0]}
+                state   {self.goal_phases[0]}LookNext
+
+            ==>
+            =g>
+                isa     {self.goal_phases[0]}
+                state   {self.goal_phases[0]}Start
+            ?visual_location> 
+                attended False 
+            +visual_location> 
+                isa _visuallocation 
+                screen_x lowest 
+                screen_y closest
+            +manual>
+                isa     _manual
+                cmd     'press_key'
+                key     W""")
+
+        actr_agent.productionstring(name="detect_targetS", string=f"""
+            =g>
+                isa     {self.goal_phases[0]}
+                state   {self.goal_phases[0]}LookNext
+
+            ==>
+            =g>
+                isa     {self.goal_phases[0]}
+                state   {self.goal_phases[0]}Start
+            ?visual_location> 
+                attended False 
+            +visual_location> 
+                isa _visuallocation 
+                screen_x lowest 
+                screen_y closest
+            +manual>
+                isa     _manual
+                cmd     'press_key'
+                key     S""")
+
+        actr_agent.productionstring(name="detect_targetD", string=f"""
+            =g>
+                isa     {self.goal_phases[0]}
+                state   {self.goal_phases[0]}LookNext
+
+            ==>
+            =g>
+                isa     {self.goal_phases[0]}
+                state   {self.goal_phases[0]}Start
+            ?visual_location> 
+                attended False 
+            +visual_location> 
+                isa _visuallocation 
+                screen_x lowest 
+                screen_y closest
+            +manual>
+                isa     _manual
+                cmd     'press_key'
+                key     D""")

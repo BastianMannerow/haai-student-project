@@ -38,15 +38,15 @@ class Simulation:
         # Configuration
         self.focus_position = (0, 2)
         self.print_middleman = False
-        self.width = 3
-        self.height = 3
-        self.food_amount = 2
-        self.wall_density = 0
+        self.width = 5
+        self.height = 5
+        self.food_amount = 3
+        self.wall_density = 20
         self.speed_factor = 50
         self.print_agent_actions = True
         self.agent_type_config = {
-            "Runner": {"count": 1, "print_agent_actions": True},
-            "Hunter": {"count": 1, "print_agent_actions": True}
+            "Runner": {"count": 3, "print_agent_actions": False},
+            "Hunter": {"count": 0, "print_agent_actions": False}
         }
 
         # Critical
@@ -154,12 +154,12 @@ class Simulation:
                 self.global_sim_time = agent.actr_time
 
                 # Further execution
+                agent.actr_extension()
                 if getattr(agent, "print_agent_actions", self.print_agent_actions):
                     print(f"{agent.name}, {agent.actr_time}, {event[1]}, {event[2]}")
                 key = BastiACTR.key_pressed(agent)
                 if key:
                     self.middleman.motor_input(key, agent)
-                agent.actr_extension()
 
             # Return recursively
             self.execute_step()

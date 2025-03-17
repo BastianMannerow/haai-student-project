@@ -79,7 +79,7 @@ class AgentConstruct:
             trace=False)
 
     def actr_extension(self):
-        pass
+        self.actr_adapter.extending_actr(self)
 
     # If the agents knowledge changes during the simulation, a new ACT-R simulation needs to be created. This doesn't
     # affect the agent itself, but rather resets the clock, which measures mental processes.

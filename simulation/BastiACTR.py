@@ -16,9 +16,10 @@ def compare_goal(agent, compare_goal):
     Returns:
         boolean
     """
-
     goals = agent.goals
     goal = str(next(iter(goals.values())))
+
+    print(goal)
 
     return "Hallo"
 

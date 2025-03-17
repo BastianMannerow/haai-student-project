@@ -26,4 +26,12 @@ class HunterAdapter:
         Args:
             agent_construct (AgentConstruct): Parent of the SocialAgent
         """
-        pass
+
+        if BastiACTR.compare_goal(agent_construct, "testStart"):
+            print(agent_construct.actr_agent.decmem)
+
+        if BastiACTR.compare_imaginal(agent_construct, "test"):
+            BastiACTR.set_goal(agent_construct, "test")
+
+        if BastiACTR.rule_fired(agent_construct, "test"):
+            pass
