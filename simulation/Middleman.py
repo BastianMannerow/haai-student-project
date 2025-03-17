@@ -1,21 +1,39 @@
-import random
-import string
 from simulation.Food import Food
 from simulation.Wall import Wall
 from simulation.AgentConstruct import AgentConstruct
 
 class Middleman:
+    """
+    Handles interaction between environment and agents. This includes visual outputs and motor inputs.
+
+    Attributes:
+        simulation (Simulation): Tha parent simulation
+        experiment_environment (Game): The environment for the agents
+        print_middleman (bool): Logging for debugging
+    """
+
     def __init__(self, simulation, print_middleman):
         self.simulation = simulation
         self.experiment_environment = None
         self.print_middleman = print_middleman
 
     def set_game_environment(self, experiment_environment):
-        print("SUCCESS")
-        print(experiment_environment)
+        """
+        Override the experiment environment. That's because Middleman is created before the environment itself.
+
+        Args:
+            experiment_environment (Game): the environment for the agents
+        """
         self.experiment_environment = experiment_environment
 
     def motor_input(self, key, current_agent):
+        """
+        Triggers environment functions based on key input
+
+        Args:
+            key (str): input key
+            current_agent (AgentConstruct): the cognitive active agent
+        """
         if key == "W":
             self.experiment_environment.move_agent_top(current_agent)
 
@@ -28,7 +46,17 @@ class Middleman:
         elif key == "D":
             self.experiment_environment.move_agent_right(current_agent)
 
-    def get_agent_stimulus(self, agent):
+    def get_agent_stimulus(self, agent): # TODO if there are too many agents, the stimulus with Food and Wall overlap.
+        """
+        Creates new visual stimuli based on the environment, the agents ids for objects and its field of view.
+
+        Args:
+            experiment_environment (agent): the agent, who gets new stimuli
+        Returns:
+            new_triggers: Dictionary of triggers, so simple Strings
+            new_text: That's a list of stimuli inside a dictionary.
+        """
+
         matrix = self.experiment_environment.level_matrix
         r, c = self.experiment_environment.find_agent(agent)
         agent_stimuli_dictionary = agent.get_agent_dictionary()
@@ -55,7 +83,7 @@ class Middleman:
                     for element in elements:
                         if isinstance(element, AgentConstruct):
                             for key, value in agent_stimuli_dictionary.items():
-                                if value == element:
+                                if value["agent"] == element:
                                     new_triggers.append(key)
                                     new_text[index] = {'text': key, 'position': (matrix_i, matrix_j)}
                                     visual_stimuli[i][j] = key
@@ -73,7 +101,6 @@ class Middleman:
                             new_text[index] = {'text': 'Z', 'position': (matrix_i, matrix_j)}
                             visual_stimuli[i][j] = 'Z'
                             index += 1
-
 
         agent.visual_stimuli = visual_stimuli
         return new_triggers, [new_text]

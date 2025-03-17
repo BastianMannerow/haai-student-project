@@ -59,3 +59,16 @@ class Game:
 
     def move_agent_right(self, agent):
         return self.move_agent(agent, 0, 1)
+
+    def remove_agent_from_game(self, agent):
+        position = self.find_agent(agent)
+        if position is not None:
+            r, c = position
+            try:
+                self.level_matrix[r][c].remove(agent)
+                print(f"Agent {agent.name} removed from cell ({r}, {c}).")
+            except ValueError:
+                print(f"Agent {agent.name} not found in cell ({r}, {c}).")
+        else:
+            print(f"Agent {agent.name} not found in the matrix.")
+        self.gui.update()

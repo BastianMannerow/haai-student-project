@@ -18,6 +18,9 @@ class AgentConstruct:
         self.name_number = name_number
         self.visual_stimuli = []
 
+        self.triggers = [{'S': {'text': 'S', 'position': (1, 1)}}]
+        self.stimuli = ['S']
+
     def set_actr_agent(self, actr_agent):
         self.actr_agent = actr_agent
 
@@ -50,19 +53,17 @@ class AgentConstruct:
     # Fills the visual buffer with new stimuli, based on the environments condition.
     def update_stimulus(self):
         if self.middleman.experiment_environment:
-            new_triggers, new_text = self.middleman.get_agent_stimulus(self)
-
-            #print("----------------- OLD STIMULUS -----------------")
-            #print(f"{self.simulation._Simulation__env.triggers}")
-            #print(f"{self.simulation._Simulation__env.stimuli}")
+            new_triggers, new_stimuli = self.middleman.get_agent_stimulus(self)
+            """
             self.simulation._Simulation__env.triggers = new_triggers
             self.simulation._Simulation__env.stimuli = new_text
             # self.simulation._Simulation__env.trigger = new_triggers #  Seems to make problems.
             self.simulation._Simulation__env.stimulus = new_text
+            """
+            self.triggers = new_triggers
+            self.stimuli = new_stimuli
 
-            #print("----------------- NEW STIMULUS -----------------")
-            #print(f"{self.simulation._Simulation__env.triggers}")
-            #print(f"{self.simulation._Simulation__env.stimuli}")
+            self.middleman.simulation.notify_gui()
 
     def set_actr_construct(self, actr_construct):
         self.actr_construct = actr_construct
@@ -71,8 +72,8 @@ class AgentConstruct:
         self.simulation = None if self.actr_agent is None else self.actr_agent.simulation(
             realtime=self.realtime,
             environment_process=self.actr_environment.environment_process,
-            stimuli=[{'S': {'text': 'S', 'position': (1, 1)}}],
-            triggers=['S'],
+            stimuli=self.stimuli,
+            triggers=self.triggers,
             times=0.1,
             gui=False,
             trace=False)
@@ -90,8 +91,8 @@ class AgentConstruct:
         new_simulation = self.actr_agent.simulation(
             realtime=self.realtime,
             environment_process=self.actr_environment.environment_process,
-            stimuli=[{'S': {'text': 'S', 'position': (1, 1)}}],
-            triggers=['S'],
+            stimuli=self.stimuli,
+            triggers=self.triggers,
             times=0.1,
             gui=False,
             trace=False

@@ -1,4 +1,3 @@
-import os
 import random
 
 import simpy
@@ -13,48 +12,80 @@ import pyactr as actr
 
 
 class Simulation:
+    """
+    Creates all objects and coordinates time
+
+    Attributes:
+        focus_position (tuple): Initial focus position of the agents eyes
+        print_middleman (bool): Logging translation between environment and agents
+        width (int): Amount of cells in the world
+        height (int): Amount of cells in the world
+        food_amount (int): How many food sources will occur in the world
+        wall_density (float): In %, the density of walls for world generation
+        speed_factor (float): In %, the speed of the simulation. 100 is real time cognition of the agents
+        print_agent_actions (bool): If False, turn off all agents internal logging simultaniously
+        agent_type_config (dict): .py Class name of your agent, amount and if you want to display their logs
+
+        global_sim_time (float): Used for synchronising the gui with the cognition time
+        agent_list (list): All agents participating in the simulation
+        root (Tkinter()): GUI of the simulation
+        agent_type_returner (AgentTypeReturner): Returns the actr agent and its Adapter
+        actr_environment (pyactr.Environment()): Environment in which the visual stimuli will appear
+        middleman (Middleman): Translates changes between the environment and the agents
+    """
+
     def __init__(self):
+        # Configuration
+        self.focus_position = (0, 2)
+        self.print_middleman = False
+        self.width = 3
+        self.height = 3
+        self.food_amount = 2
+        self.wall_density = 0
+        self.speed_factor = 50
+        self.print_agent_actions = True
+        self.agent_type_config = {
+            "Runner": {"count": 1, "print_agent_actions": True},
+            "Hunter": {"count": 1, "print_agent_actions": True}
+        }
+
+        # Critical
+        self.global_sim_time = 0
         self.agent_list = []
         self.root = tk.Tk()
-        self.latency_factor_agent_actions = 1000  # in ms
-        self.print_middleman = False
-        self.middleman = Middleman(self, self.print_middleman)
-        self.population_size = 2
-        self.focus_position = (0, 2)
         self.agent_type_returner = AgentTypeReturner()
         self.actr_environment = actr.Environment(focus_position=self.focus_position)
-        self.print_agent_actions = True
-
-        # World configuration
-        self.width = 9
-        self.height = 9
-        self.food_amount = 2
-        self.wall_density = 10
+        self.middleman = Middleman(self, self.print_middleman)
 
     def agent_builder(self):
         """
-        Builds all ACT-R agents
+        Creates all agent objects with its components.
         """
+
         with open("gui/sprites/pokemon/pokemonNames.txt", 'r') as file:
             names = file.read().splitlines()
-
-        original_names = names.copy()  # Keep a copy of the original list to avoid index errors with the sprites
+        original_names = names.copy()
         random.shuffle(names)
 
-        agent_type = "Runner"
+        # Creates agent constructs, which hold all information of one agent.
+        for agent_type, config in self.agent_type_config.items():
+            count = config["count"]
+            print_actions = config.get("print_agent_actions", self.print_agent_actions)
+            for i in range(count):
+                name = names.pop()
+                name_number = original_names.index(name) + 1
+                agent = AgentConstruct(agent_type, self.actr_environment, None, self.middleman, name, name_number)
+                agent.actr_time = 0
+                agent.print_agent_actions = print_actions
+                self.agent_list.append(agent)
 
-        for i in range(int(self.population_size)):
-            name = names.pop()
-            name_number = original_names.index(name) + 1
-            agent = AgentConstruct(agent_type, self.actr_environment, None, self.middleman, name, name_number)
-            self.agent_list.append(agent)
-
+        # Adding more information to the construct, so that one agent is able to distinguish other agents.
         for agent in self.agent_list:
             agent.set_agent_dictionary(self.agent_list)
             agent_id_list = list(agent.get_agent_dictionary())
             actr_construct, actr_agent, actr_adapter = self.agent_type_returner.return_agent_type(
-                agent.actr_agent_type_name,
-                self.actr_environment, agent_id_list)
+                agent.actr_agent_type_name, self.actr_environment, agent_id_list
+            )
             agent.set_actr_agent(actr_agent)
             agent.set_actr_adapter(actr_adapter)
             agent.set_simulation()
@@ -62,61 +93,91 @@ class Simulation:
 
     def run_simulation(self):
         """
-        Entry point to the simulation. Setup, which enters the loop of step execution.
+        Initialises the simulation (building agents, middleman and game, then entering execution loop and start gui)
         """
         self.agent_builder()
-        level_matrix = levelbuilder.build_level(self.height, self.width, self.agent_list, self.food_amount,
-                                                self.wall_density)
+        level_matrix = levelbuilder.build_level(
+            self.height, self.width, self.agent_list, self.food_amount, self.wall_density
+        )
         self.game_environment = Game(self.root, level_matrix)
         self.middleman.set_game_environment(self.game_environment)
-
         self.execute_step()
-        self.root.mainloop()  # Allows GUI to run even while waiting for events
+        self.root.mainloop()
 
     def execute_step(self):
         """
-        Execute an ACT-R specific step and triggers Adapter rules if needed.
+        Schedules the agents based on their cognition time. Allows the cognitive fastest agent to step.
         """
-        self.schedule_agents_cognition()
-        current_agent = self.agent_list[0]
 
+        # Refresh agents visual stimuli, to keep their buffers up to date. Can't be moved to other method,
+        # because deadlocks could arise.
+        for agent in self.agent_list:
+            agent.update_stimulus()
+
+        # Scheduling
+        self.agent_list.sort(key=lambda agent: agent.actr_time)
+        next_agent = self.agent_list[0]
+        delay = next_agent.actr_time - self.global_sim_time
+        factor = 100 / self.speed_factor
+        delay_ms = round(delay * factor * 1000)
+        if delay_ms < 1:
+            delay_ms = 1
+
+        # Execution
+        self.root.after(delay_ms, lambda: self.execute_agent_step(next_agent))
+
+    def execute_agent_step(self, agent):
+        """
+        Executes a cognitive step. Also handles errors like empty schedules (by reset) or inactivity (by removal).
+
+        Args:
+            agent (AgentConstruct): the cognitive active agent
+        """
         try:
-            current_agent.simulation.step()
-            # Synch timer
-            event = current_agent.simulation.current_event
-            current_agent.actr_time = current_agent.actr_time + event.time
-            self.latency_factor_agent_actions = round(event.time * 1000)
+            agent.simulation.step()
+            event = agent.simulation.current_event
 
-            if (self.print_agent_actions):
-                print(f"{current_agent.name}, {current_agent.actr_time}, {event[1]}, {event[2]}")
-            key = BastiACTR.key_pressed(current_agent)
-            # The agent decided to press a key, which will be executed by the middleman.
-            if key:
-                self.middleman.motor_input(key, current_agent)
+            # Measuring cognitive time. Removal after ten cognitive deadlocks
+            if event.time > 0:
+                agent.no_increase_count = 0
+            else:
+                agent.no_increase_count = getattr(agent, "no_increase_count", 0) + 1
 
-            # The agent might be in a specific mental state, which requires Python intervention to override ACT-R.
-            current_agent.actr_extension()
-            self.root.after(self.latency_factor_agent_actions, lambda: self.execute_step())
+            if agent.no_increase_count >= 10:
+                print(f"{agent.name} removed due to 10 consecutive steps with no actr_time increase.")
+                if agent in self.agent_list:
+                    self.agent_list.remove(agent)
+                self.game_environment.remove_agent_from_game(agent)
+            else:
+                # Refresh time for the agent and the global simulation
+                agent.actr_time += event.time
+                self.global_sim_time = agent.actr_time
 
-        # Error handling due to a crashed ACT-R agent, to rescue the simulation.
-        except simpy.core.EmptySchedule:
-            if (self.print_agent_actions):
-                print(f"{current_agent.name}, {current_agent.actr_time}, Oh no! Your agent has no production to fire :( Reset to initial goal!")
-            current_agent.handle_empty_schedule()
+                # Further execution
+                if getattr(agent, "print_agent_actions", self.print_agent_actions):
+                    print(f"{agent.name}, {agent.actr_time}, {event[1]}, {event[2]}")
+                key = BastiACTR.key_pressed(agent)
+                if key:
+                    self.middleman.motor_input(key, agent)
+                agent.actr_extension()
+
+            # Return recursively
+            self.execute_step()
+
+        # Error handling
+        except (simpy.core.EmptySchedule, AttributeError, IndexError, RuntimeError) as e:
+            if "has terminated" in str(e):
+                print(
+                    f"{agent.name}, {agent.actr_time}, Oh no! Your agent's simulation process has terminated. Resetting to initial goal!")
+            else:
+                print(
+                    f"{agent.name}, {agent.actr_time}, Oh no! Your agent has no production to fire :( Reset to initial goal!")
+            agent.handle_empty_schedule()
             self.root.after_idle(lambda: self.execute_step())
-
-    def schedule_agents_cognition(self):
-        """
-        Schedules the agents priority based on their time step inside their cognition. Basically rearranges the list.
-        """
-        if self.agent_list:
-            for agent in self.agent_list:
-                agent.update_stimulus()
-            self.agent_list.sort(key=lambda agent: agent.actr_time)
 
     def notify_gui(self):
         """
-        Notifies the gui to refresh.
+        Causes gui to refresh
         """
         if hasattr(self, 'gui'):
             self.gui.update()
