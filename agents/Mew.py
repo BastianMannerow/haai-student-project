@@ -1,7 +1,7 @@
 import pyactr as actr
 
 
-class Runner:
+class Mew:
     """
     A basic agent, which serves as a demonstrator.
 
@@ -25,7 +25,7 @@ class Runner:
         self.environ = environ
         self.actr_agent = actr.ACTRModel(environment=self.environ, motor_prepared=True, automatic_visual_search=False,
                                          subsymbolic=True)
-        self.goal_phases = ["run"]
+        self.goal_phases = ["test"]
 
         self.initial_goal = actr.chunkstring(string=f"""
             isa     {self.goal_phases[0]}
@@ -62,62 +62,11 @@ class Runner:
         return actr_agent
 
     def add_productions(self, actr_agent, phase):
-        actr_agent.productionstring(name=f"move up", string=f"""
+        actr_agent.productionstring(name=f"happy easteregg", string=f"""
                 =g>
-                isa     {self.goal_phases[0]}
-                state   {self.goal_phases[0]}Start
-                ?manual>
-                state   free
+                isa     {phase}
+                state   {phase}Start
                 ==>
                 =g>
-                isa     {self.goal_phases[0]}
-                state   {self.goal_phases[0]}Start
-                +manual>
-                isa     _manual
-                cmd     'press_key'
-                key     W""")
-
-        actr_agent.productionstring(name=f"move down", string=f"""
-                =g>
-                isa     {self.goal_phases[0]}
-                state   {self.goal_phases[0]}Start
-                ?manual>
-                state   free
-                ==>
-                =g>
-                isa     {self.goal_phases[0]}
-                state   {self.goal_phases[0]}Start
-                +manual>
-                isa     _manual
-                cmd     'press_key'
-                key     S""")
-
-        actr_agent.productionstring(name=f"move right", string=f"""
-                =g>
-                isa     {self.goal_phases[0]}
-                state   {self.goal_phases[0]}Start
-                ?manual>
-                state   free
-                ==>
-                =g>
-                isa     {self.goal_phases[0]}
-                state   {self.goal_phases[0]}Start
-                +manual>
-                isa     _manual
-                cmd     'press_key'
-                key     D""")
-
-        actr_agent.productionstring(name=f"move left", string=f"""
-                =g>
-                isa     {self.goal_phases[0]}
-                state   {self.goal_phases[0]}Start
-                ?manual>
-                state   free
-                ==>
-                =g>
-                isa     {self.goal_phases[0]}
-                state   {self.goal_phases[0]}Start
-                +manual>
-                isa     _manual
-                cmd     'press_key'
-                key     A""")
+                isa     {phase}
+                state   {phase}Start""")

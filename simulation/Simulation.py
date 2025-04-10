@@ -2,7 +2,7 @@ import random
 
 import simpy
 import tkinter as tk
-from simulation import BastiACTR
+from simulation import LübeckACTR
 from simulation.Middleman import Middleman
 from simulation.Game import Game
 from simulation.AgentConstruct import AgentConstruct
@@ -40,13 +40,14 @@ class Simulation:
         self.print_middleman = False
         self.width = 5
         self.height = 5
-        self.food_amount = 3
-        self.wall_density = 20
+        self.food_amount = 0
+        self.wall_density = 0
         self.speed_factor = 50
         self.print_agent_actions = True
         self.agent_type_config = {
-            "Runner": {"count": 3, "print_agent_actions": False},
-            "Hunter": {"count": 0, "print_agent_actions": False}
+            "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True} #,
+            # "Psyduck": {"count": 1, "pokedex_id": 54, "print_agent_actions": True},
+            # "Evee": {"count": 1, "pokedex_id": 133, "print_agent_actions": True},
         }
 
         # Critical
@@ -61,7 +62,6 @@ class Simulation:
         """
         Creates all agent objects with its components.
         """
-
         with open("gui/sprites/pokemon/pokemonNames.txt", 'r') as file:
             names = file.read().splitlines()
         original_names = names.copy()
@@ -71,9 +71,16 @@ class Simulation:
         for agent_type, config in self.agent_type_config.items():
             count = config["count"]
             print_actions = config.get("print_agent_actions", self.print_agent_actions)
+            pokedex_id = config.get("pokedex_id")
+
             for i in range(count):
-                name = names.pop()
-                name_number = original_names.index(name) + 1
+                if pokedex_id is not None:
+                    name_number = pokedex_id
+                    name = original_names[name_number - 1]
+                else:
+                    name = names.pop()
+                    name_number = original_names.index(name) + 1
+
                 agent = AgentConstruct(agent_type, self.actr_environment, None, self.middleman, name, name_number)
                 agent.actr_time = 0
                 agent.print_agent_actions = print_actions
@@ -157,7 +164,7 @@ class Simulation:
                 agent.actr_extension()
                 if getattr(agent, "print_agent_actions", self.print_agent_actions):
                     print(f"{agent.name}, {agent.actr_time}, {event[1]}, {event[2]}")
-                key = BastiACTR.key_pressed(agent)
+                key = LübeckACTR.key_pressed(agent)
                 if key:
                     self.middleman.motor_input(key, agent)
 

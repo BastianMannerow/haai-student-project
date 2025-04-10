@@ -1,6 +1,6 @@
-from simulation import BastiACTR
+from simulation import LübeckACTR
 
-class BastiAdapter:
+class MewAdapter:
     """
     A basic agent, which serves as a demonstrator.
 
