@@ -59,6 +59,8 @@ class Middleman:
 
         matrix = self.experiment_environment.level_matrix
         r, c = self.experiment_environment.find_agent(agent)
+        if r is None:
+            return None, None
         agent_stimuli_dictionary = agent.get_agent_dictionary()
 
         new_triggers = []

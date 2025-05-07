@@ -36,18 +36,22 @@ class Simulation:
 
     def __init__(self):
         # Configuration
+        self.level_type = "Perception & Action 1"
         self.focus_position = (0, 2)
         self.print_middleman = False
         self.width = 5
         self.height = 5
-        self.food_amount = 0
+        self.food_amount = 3
         self.wall_density = 0
         self.speed_factor = 50
         self.print_agent_actions = True
         self.agent_type_config = {
-            "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True} #,
-            # "Psyduck": {"count": 1, "pokedex_id": 54, "print_agent_actions": True},
-            # "Evee": {"count": 1, "pokedex_id": 133, "print_agent_actions": True},
+            "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True}
+            #"Charmander": {"count": 1, "pokedex_id": 4, "print_agent_actions": False},
+            #"Victreebel": {"count": 1, "pokedex_id": 71, "print_agent_actions": False}
+            #"Pinsir": {"count": 1, "pokedex_id": 127, "print_agent_actions": False}
+            #"Deoxis": {"count": 1, "pokedex_id": 386, "print_agent_actions": False}
+            #"Dakrai": {"count": 1, "pokedex_id": 491, "print_agent_actions": False}
         }
 
         # Critical
@@ -104,7 +108,7 @@ class Simulation:
         """
         self.agent_builder()
         level_matrix = levelbuilder.build_level(
-            self.height, self.width, self.agent_list, self.food_amount, self.wall_density
+            self.height, self.width, self.agent_list, self.food_amount, self.wall_density, self.level_type
         )
         self.game_environment = Game(self.root, level_matrix)
         self.middleman.set_game_environment(self.game_environment)
@@ -145,7 +149,7 @@ class Simulation:
             event = agent.simulation.current_event
 
             # Measuring cognitive time. Removal after ten cognitive deadlocks
-            if event.time > 0:
+            if event.time > 0 or self.level_type is not None:
                 agent.no_increase_count = 0
             else:
                 agent.no_increase_count = getattr(agent, "no_increase_count", 0) + 1

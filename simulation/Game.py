@@ -24,7 +24,7 @@ class Game:
             for c, cell in enumerate(row):
                 if agent in cell:
                     return r, c
-        return None
+        return None, None
 
     def move_agent(self, agent, dr, dc):
         position = self.find_agent(agent)
