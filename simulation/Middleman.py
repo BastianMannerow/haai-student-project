@@ -69,40 +69,55 @@ class Middleman:
         rows = len(matrix)
         cols = len(matrix[0])
 
-        # Initialize the visual stimuli matrix with empty strings
-        visual_stimuli = [['' for _ in range(5)] for _ in range(5)]
 
         index = 0  # To keep track of the index for new_text
 
-        for i in range(5):
-            for j in range(5):
-                matrix_i = r - 2 + i
-                matrix_j = c - 2 + j
+        # Change los to matrix size if 0
+        los = agent.los
+        if los == 0 or los > cols or los > rows:
+            x_los = cols
+            y_los = rows
+        else:
+            x_los = los
+            y_los = los
+
+        # Initialize the visual stimuli matrix with empty strings
+        offset_y = y_los // 2
+        offset_x = x_los // 2
+
+        visual_stimuli = [['' for _ in range(x_los)] for _ in range(y_los)]
+        index = 0
+
+        for i in range(y_los):
+            for j in range(x_los):
+                matrix_i = r - offset_y + i
+                matrix_j = c - offset_x + j
                 if matrix_i < 0 or matrix_i >= rows or matrix_j < 0 or matrix_j >= cols:
                     visual_stimuli[i][j] = 'X'
-                else:
-                    elements = matrix[matrix_i][matrix_j]
-                    for element in elements:
-                        if isinstance(element, AgentConstruct):
-                            for key, value in agent_stimuli_dictionary.items():
-                                if value["agent"] == element:
-                                    new_triggers.append(key)
-                                    new_text[index] = {'text': key, 'position': (matrix_i, matrix_j)}
-                                    visual_stimuli[i][j] = key
-                                    index += 1
-                                    break
-                        elif isinstance(element, Food):
-                            if 'Y' not in new_triggers:
-                                new_triggers.append('Y')
-                            new_text[index] = {'text': 'Y', 'position': (matrix_i, matrix_j)}
-                            visual_stimuli[i][j] = 'Y'
-                            index += 1
-                        elif isinstance(element, Wall):
-                            if 'Z' not in new_triggers:
-                                new_triggers.append('Z')
-                            new_text[index] = {'text': 'Z', 'position': (matrix_i, matrix_j)}
-                            visual_stimuli[i][j] = 'Z'
-                            index += 1
+                    continue
+
+                elements = matrix[matrix_i][matrix_j]
+                for element in elements:
+                    if isinstance(element, AgentConstruct):
+                        for key, value in agent_stimuli_dictionary.items():
+                            if value["agent"] == element:
+                                new_triggers.append(key)
+                                new_text[index] = {'text': key, 'position': (matrix_i, matrix_j), 'color': 'blue', 'value': key}
+                                visual_stimuli[i][j] = key
+                                index += 1
+                                break
+                    elif isinstance(element, Food):
+                        if 'Y' not in new_triggers:
+                            new_triggers.append('Y')
+                        new_text[index] = {'text': 'Y', 'position': (matrix_i, matrix_j), 'color': 'red', 'value': 'Y'}
+                        visual_stimuli[i][j] = 'Y'
+                        index += 1
+                    elif isinstance(element, Wall):
+                        if 'Z' not in new_triggers:
+                            new_triggers.append('Z')
+                        new_text[index] = {'text': 'Z', 'position': (matrix_i, matrix_j), 'color': 'black', 'value': 'Z'}
+                        visual_stimuli[i][j] = 'Z'
+                        index += 1
 
         agent.visual_stimuli = visual_stimuli
         return new_triggers, [new_text]

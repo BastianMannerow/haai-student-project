@@ -1,7 +1,7 @@
 
 
 class AgentConstruct:
-    def __init__(self, actr_agent_type_name, actr_environment, simulation, middleman, name, name_number):
+    def __init__(self, actr_agent_type_name, actr_environment, simulation, middleman, name, name_number, los):
 
         # ACT-R specific settings
         self.pun = False # can be removed later
@@ -17,6 +17,7 @@ class AgentConstruct:
         self.middleman = middleman
         self.name_number = name_number
         self.visual_stimuli = []
+        self.los = los
 
         self.triggers = [{'S': {'text': 'S', 'position': (1, 1)}}]
         self.stimuli = ['S']

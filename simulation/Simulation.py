@@ -24,6 +24,7 @@ class Simulation:
         wall_density (float): In %, the density of walls for world generation
         speed_factor (float): In %, the speed of the simulation. 100 is real time cognition of the agents
         print_agent_actions (bool): If False, turn off all agents internal logging simultaniously
+        los (int): How far is the line of sight for the agent. 0 = Infinite
         agent_type_config (dict): .py Class name of your agent, amount and if you want to display their logs
 
         global_sim_time (float): Used for synchronising the gui with the cognition time
@@ -36,7 +37,7 @@ class Simulation:
 
     def __init__(self):
         # Configuration
-        self.level_type = "Perception & Action 1"
+        self.level_type = "Perception & Action 3"
         self.focus_position = (0, 2)
         self.print_middleman = False
         self.width = 5
@@ -45,9 +46,10 @@ class Simulation:
         self.wall_density = 0
         self.speed_factor = 50
         self.print_agent_actions = True
+        self.los = 0
         self.agent_type_config = {
-            "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True}
-            #"Charmander": {"count": 1, "pokedex_id": 4, "print_agent_actions": False},
+            "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True},
+            "Beedrill": {"count": 1, "pokedex_id": 15, "print_agent_actions": False}
             #"Victreebel": {"count": 1, "pokedex_id": 71, "print_agent_actions": False}
             #"Pinsir": {"count": 1, "pokedex_id": 127, "print_agent_actions": False}
             #"Deoxis": {"count": 1, "pokedex_id": 386, "print_agent_actions": False}
@@ -85,7 +87,7 @@ class Simulation:
                     name = names.pop()
                     name_number = original_names.index(name) + 1
 
-                agent = AgentConstruct(agent_type, self.actr_environment, None, self.middleman, name, name_number)
+                agent = AgentConstruct(agent_type, self.actr_environment, None, self.middleman, name, name_number, self.los)
                 agent.actr_time = 0
                 agent.print_agent_actions = print_actions
                 self.agent_list.append(agent)
@@ -179,10 +181,10 @@ class Simulation:
         except (simpy.core.EmptySchedule, AttributeError, IndexError, RuntimeError) as e:
             if "has terminated" in str(e):
                 print(
-                    f"{agent.name}, {agent.actr_time}, Oh no! Your agent's simulation process has terminated. Resetting to initial goal!")
+                    f"{agent.name}, {agent.actr_time}, Oh no! Your agent's simulation process has terminated. Resetting to initial goal! "+str(e))
             else:
                 print(
-                    f"{agent.name}, {agent.actr_time}, Oh no! Your agent has no production to fire :( Reset to initial goal!")
+                    f"{agent.name}, {agent.actr_time}, Oh no! Your agent has no production to fire :( Reset to initial goal! "+str(e))
             agent.handle_empty_schedule()
             self.root.after_idle(lambda: self.execute_step())
 
