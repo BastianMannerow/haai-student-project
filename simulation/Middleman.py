@@ -46,78 +46,92 @@ class Middleman:
         elif key == "D":
             self.experiment_environment.move_agent_right(current_agent)
 
-    def get_agent_stimulus(self, agent): # TODO if there are too many agents, the stimulus with Food and Wall overlap.
+    def get_agent_stimulus(self, agent):
         """
-        Creates new visual stimuli based on the environment, the agents ids for objects and its field of view.
+        Creates new visual stimuli based on the environment, the agent's ID map, and its field of view.
 
         Args:
-            experiment_environment (agent): the agent, who gets new stimuli
-        Returns:
-            new_triggers: Dictionary of triggers, so simple Strings
-            new_text: That's a list of stimuli inside a dictionary.
-        """
+            agent (AgentConstruct): the cognitive active agent
 
+        Returns:
+            new_triggers (list of str): symbols for each visible object
+            stimuli (list of dict): list with exactly one dict mapping unique stimulus-IDs
+                                  to {'text', 'position', 'color', 'value'}
+        """
         matrix = self.experiment_environment.level_matrix
         r, c = self.experiment_environment.find_agent(agent)
         if r is None:
             return None, None
-        agent_stimuli_dictionary = agent.get_agent_dictionary()
 
-        new_triggers = []
-        new_text = {}
+        agent_map = agent.get_agent_dictionary()
+        rows, cols = len(matrix), len(matrix[0])
 
-        rows = len(matrix)
-        cols = len(matrix[0])
-
-
-        index = 0  # To keep track of the index for new_text
-
-        # Change los to matrix size if 0
+        # Field of view (los)
         los = agent.los
         if los == 0 or los > cols or los > rows:
-            x_los = cols
-            y_los = rows
+            x_los, y_los = cols, rows
         else:
-            x_los = los
-            y_los = los
+            x_los = y_los = los
 
-        # Initialize the visual stimuli matrix with empty strings
-        offset_y = y_los // 2
-        offset_x = x_los // 2
+        off_y, off_x = y_los // 2, x_los // 2
 
+        # Prepare Rückgabe
+        new_triggers = []
+        frame = {}  # Hier sammeln wir alle Stimuli für *ein* Zeitfenster
+
+        # (optional) Für Debug/Visualisierung
         visual_stimuli = [['' for _ in range(x_los)] for _ in range(y_los)]
-        index = 0
 
         for i in range(y_los):
             for j in range(x_los):
-                matrix_i = r - offset_y + i
-                matrix_j = c - offset_x + j
-                if matrix_i < 0 or matrix_i >= rows or matrix_j < 0 or matrix_j >= cols:
+                mi, mj = r - off_y + i, c - off_x + j
+                if mi < 0 or mi >= rows or mj < 0 or mj >= cols:
                     visual_stimuli[i][j] = 'X'
                     continue
 
-                elements = matrix[matrix_i][matrix_j]
-                for element in elements:
+                for element in matrix[mi][mj]:
                     if isinstance(element, AgentConstruct):
-                        for key, value in agent_stimuli_dictionary.items():
-                            if value["agent"] == element:
-                                new_triggers.append(key)
-                                new_text[index] = {'text': key, 'position': (matrix_i, matrix_j), 'color': 'blue', 'value': key}
-                                visual_stimuli[i][j] = key
-                                index += 1
+                        # Welches Symbol gehört zu diesem Agenten?
+                        for sym, info in agent_map.items():
+                            if info["agent"] == element:
+                                if sym not in new_triggers:
+                                    new_triggers.append(sym)
+                                frame[sym] = {
+                                    "text": sym,
+                                    "position": (mi, mj),
+                                    "color": "blue",
+                                    "value": sym
+                                }
+                                visual_stimuli[i][j] = sym
                                 break
-                    elif isinstance(element, Food):
-                        if 'Y' not in new_triggers:
-                            new_triggers.append('Y')
-                        new_text[index] = {'text': 'Y', 'position': (matrix_i, matrix_j), 'color': 'red', 'value': 'Y'}
-                        visual_stimuli[i][j] = 'Y'
-                        index += 1
-                    elif isinstance(element, Wall):
-                        if 'Z' not in new_triggers:
-                            new_triggers.append('Z')
-                        new_text[index] = {'text': 'Z', 'position': (matrix_i, matrix_j), 'color': 'black', 'value': 'Z'}
-                        visual_stimuli[i][j] = 'Z'
-                        index += 1
 
+                    elif isinstance(element, Food):
+                        sym = 'Y'
+                        if sym not in new_triggers:
+                            new_triggers.append(sym)
+                        frame[sym] = {
+                            "text": sym,
+                            "position": (mi, mj),
+                            "color": "red",
+                            "value": sym
+                        }
+                        visual_stimuli[i][j] = sym
+
+                    elif isinstance(element, Wall):
+                        sym = 'Z'
+                        if sym not in new_triggers:
+                            new_triggers.append(sym)
+                        frame[sym] = {
+                            "text": sym,
+                            "position": (mi, mj),
+                            "color": "black",
+                            "value": sym
+                        }
+                        visual_stimuli[i][j] = sym
+
+        # Für (optionale) Visualisierung im Agent-Objekt
         agent.visual_stimuli = visual_stimuli
-        return new_triggers, [new_text]
+
+        # PyACT-R erwartet: List[Dict[id → attributes]]
+        stimuli = [frame]
+        return new_triggers, stimuli

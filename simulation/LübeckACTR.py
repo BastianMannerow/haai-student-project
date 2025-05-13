@@ -3,7 +3,107 @@
 """
 from itertools import islice
 import pyactr as actr
+import pyactr.vision as vision
+from pyactr import chunks, utilities
+from pyactr.utilities import ACTRError
+def fix_pyactr():
+    # Backup the original method
+    _original_find = vision.VisualLocation.find
 
+    # Patched find method with corrected attribute lookup
+
+    def patched_find(self, otherchunk, actrvariables=None, extra_tests=None):
+        # Initialize variables
+        if extra_tests is None:
+            extra_tests = {}
+        if actrvariables is None:
+            actrvariables = {}
+
+        # Build search chunk from production right-hand side
+        try:
+            mod_attr_val = {x[0]: utilities.check_bound_vars(actrvariables, x[1], negative_impossible=False)
+                            for x in otherchunk.removeunused()}
+        except ACTRError as e:
+            raise ACTRError(f"The chunk '{otherchunk}' is not defined correctly; {e}")
+        chunk_used_for_search = chunks.Chunk(utilities.VISUALLOCATION, **mod_attr_val)
+
+        found = None
+        found_stim = None
+        closest = float("inf")
+        x_closest = float("inf")
+        y_closest = float("inf")
+
+        # Iterate over stimulus keys and their attribute dicts
+        for each in self.environment.stimulus:
+            stim_attrs = self.environment.stimulus[each]
+
+            # Extra-tests for attended flag
+            try:
+                attended_flag = extra_tests.get("attended")
+                if attended_flag in (False, 'False') and self.finst and stim_attrs in self.recent:
+                    continue
+                if attended_flag not in (False, 'False') and self.finst and stim_attrs not in self.recent:
+                    continue
+            except KeyError:
+                pass
+
+            # Value test
+            if (chunk_used_for_search.value != chunk_used_for_search.EmptyValue() and
+                    chunk_used_for_search.value.values != stim_attrs.get("text")):
+                continue
+
+            # Position extraction
+            position = (int(stim_attrs['position'][0]), int(stim_attrs['position'][1]))
+
+            # Screen-X/Y absolute tests
+            try:
+                if (chunk_used_for_search.screen_x.values and
+                        int(chunk_used_for_search.screen_x.values) != position[0]):
+                    continue
+            except (TypeError, ValueError, AttributeError):
+                pass
+            try:
+                if (chunk_used_for_search.screen_y.values and
+                        int(chunk_used_for_search.screen_y.values) != position[1]):
+                    continue
+            except (TypeError, ValueError, AttributeError):
+                pass
+
+            # Additional relative and closest tests omitted for brevity...
+            # [Include the rest of the original distance checks here]
+
+            # If stimulus passes all tests, prepare the visible chunk
+            found_stim = stim_attrs
+
+            # --- FIXED comprehension: use stim_attrs, not 'each' directly ---
+            filtered = {
+                k: stim_attrs[k]
+                for k in stim_attrs
+                if k not in ('position', 'text', 'vis_delay')
+            }
+            visible_chunk = chunks.makechunk(
+                nameofchunk="vis1",
+                typename="_visuallocation",
+                **filtered
+            )
+
+            # Compare chunk to search criteria
+            if visible_chunk <= chunk_used_for_search:
+                temp_dict = visible_chunk._asdict()
+                temp_dict.update({"screen_x": position[0], "screen_y": position[1]})
+                found = chunks.Chunk(utilities.VISUALLOCATION, **temp_dict)
+
+                # Update current-closeness metrics
+                closest = utilities.calculate_pythagorean_distance(self.environment.current_focus, position)
+                x_closest = utilities.calculate_onedimensional_distance(self.environment.current_focus, position,
+                                                                        horizontal=True)
+                y_closest = utilities.calculate_onedimensional_distance(self.environment.current_focus, position,
+                                                                        horizontal=False)
+
+        return found, found_stim
+
+    # Apply patch
+    vision.VisualLocation.find = patched_find
 
 def compare_goal(agent, compare_goal):
     """

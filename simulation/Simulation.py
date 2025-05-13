@@ -127,6 +127,8 @@ class Simulation:
         for agent in self.agent_list:
             agent.update_stimulus()
 
+        LübeckACTR.fix_pyactr()
+
         # Scheduling
         self.agent_list.sort(key=lambda agent: agent.actr_time)
         next_agent = self.agent_list[0]
