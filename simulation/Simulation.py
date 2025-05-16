@@ -181,12 +181,16 @@ class Simulation:
 
         # Error handling
         except (simpy.core.EmptySchedule, AttributeError, IndexError, RuntimeError) as e:
+            blue = "\033[94m"
+            reset = "\033[0m"
             if "has terminated" in str(e):
                 print(
-                    f"{agent.name}, {agent.actr_time}, Oh no! Your agent's simulation process has terminated. Resetting to initial goal! "+str(e))
+                    blue + f"{agent.name}, {agent.actr_time}, Oh no! Your agent's simulation process has terminated. Resetting to initial goal! " + str(
+                        e) + reset)
             else:
                 print(
-                    f"{agent.name}, {agent.actr_time}, Oh no! Your agent has no production to fire :( Reset to initial goal! "+str(e))
+                    blue + f"{agent.name}, {agent.actr_time}, Oh no! Your agent has no production to fire :( Reset to initial goal! " + str(
+                        e) + reset)
             agent.handle_empty_schedule()
             self.root.after_idle(lambda: self.execute_step())
 

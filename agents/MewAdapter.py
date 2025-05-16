@@ -1,4 +1,5 @@
 from simulation import LübeckACTR
+import pyactr as actr
 
 class MewAdapter:
     """
@@ -16,14 +17,14 @@ class MewAdapter:
         self.agent_construct = agent_construct
 
     # Extending ACT-R
-    def extending_actr(self, agent_construct):
+    def extending_actr(self):
         """
         Functionality, which extends ACT-R
         In pyactr, ACT-R functionality and regular arithmetic or logical functions are strictly divided.
         The reason for that is a clearer understanding of the agents' behaviour.
         This method will supervise the internal state of the agent.
-
-        Args:
-            agent_construct (AgentConstruct): Parent of the SocialAgent
         """
-        pass
+        #actr_agent = self.agent_construct.actr_agent
+        #LübeckACTR.set_imaginal(actr_agent, actr.chunkstring(
+        #            string=f"isa test state testtest"), 2)
+        #LübeckACTR.get_imaginal(actr_agent, actr.chunkstring(self.agent_construct.actr_agent, 2))

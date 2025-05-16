@@ -6,7 +6,14 @@ import pyactr as actr
 import pyactr.vision as vision
 from pyactr import chunks, utilities
 from pyactr.utilities import ACTRError
+from collections.abc import MutableSet, MutableSequence
+
+
 def fix_pyactr():
+    """
+    Overrides pyactr visual class. There's an issue with attending objects & Chunk information especially with automatic visual search set to True
+    """
+
     # Backup the original method
     _original_find = vision.VisualLocation.find
 
@@ -105,55 +112,55 @@ def fix_pyactr():
     # Apply patch
     vision.VisualLocation.find = patched_find
 
-def compare_goal(agent, compare_goal):
-    """
-    Compares the goal of the agent with the given goal.
-
-    Args:
-        agent (pyactr agent): Parent of the SocialAgent
-        goal (str): The goal
-
-    Returns:
-        boolean
-    """
-    goals = agent.goals
-    goal = str(next(iter(goals.values())))
-
-    print(goal)
-
-    return "Hallo"
-
-
-def compare_imaginal(agent, compare_imaginal):
-    """
-    Compares the goal of the agent with the given goal.
-
-    Args:
-        agent (pyactr agent): Parent of the SocialAgent
-        goal (str): The goal
-
-    Returns:
-        boolean
-    """
-
-    goals = agent.goals
-    imaginal = str(next(islice(goals.values(), 1, 2)))
-
-    return "Hallo"
-
-
-def rule_fired(agent, rule_name):
+def production_fired(agent, production_name): #TODO
     event = agent_construct.simulation.current_event
+    print(event)
     return True
 
 
-def set_goal(agent, goal):
+def set_goal(agent, chunk):
     first_goal = next(iter(agent.goals.values()))
-    first_goal.add(actr.chunkstring(
-        string=f"isa {self.goal_phases[0]} state {self.goal_phases[0]}RememberedPunishment"))
+    first_goal.add(chunk)
 
+def get_imaginal(agent, index):
+    goals = agent.goals
+    try:
+        key = next(islice(goals.keys(), index, index + 1))
+        value = next(islice(goals.values(), index, index + 1))
+    except StopIteration:
+        raise IndexError("index out of range")
+
+    print(f"key  #{index}: {key}")
+    print(f"value#{index}: {value}")
+
+
+def set_imaginal(agent, new_chunk, index):
+    """
+    Fügt `new_chunk` zum Goal an Position `index` in agent.goals hinzu.
+    Das Goal-Objekt muss eine .add()-Methode haben (z.B. ein Set).
+    """
+    goals = agent.goals
+    try:
+        # Schlüssel und Wert an der gewünschten Position ermitteln
+        key = next(islice(goals.keys(), index, index + 1))
+        value = next(islice(goals.values(), index, index + 1))
+    except StopIteration:
+        raise IndexError(f"Index {index} out of range for goals (size={len(goals)})")
+
+    # neues Chunk hinzufügen
+    value.add(new_chunk)
+
+    # Ausgabe zur Kontrolle
+    print(f"key  #{index}: {key}")
+    print(f"value#{index}: {value}")
 
 def key_pressed(agent_construct):
+    """
+    Checks if a key was pressed to notify the Game.py
+
+    :param agent_construct:
+    :return:
+    """
     event = agent_construct.simulation.current_event
     if event[1] == "manual" and "KEY PRESSED:" in event[2]:
         key = event[2][-1]

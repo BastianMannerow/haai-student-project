@@ -7,7 +7,7 @@ class Middleman:
     Handles interaction between environment and agents. This includes visual outputs and motor inputs.
 
     Attributes:
-        simulation (Simulation): Tha parent simulation
+        simulation (Simulation): The parent simulation
         experiment_environment (Game): The environment for the agents
         print_middleman (bool): Logging for debugging
     """
@@ -36,13 +36,10 @@ class Middleman:
         """
         if key == "W":
             self.experiment_environment.move_agent_top(current_agent)
-
         elif key == "A":
             self.experiment_environment.move_agent_left(current_agent)
-
         elif key == "S":
             self.experiment_environment.move_agent_bottom(current_agent)
-
         elif key == "D":
             self.experiment_environment.move_agent_right(current_agent)
 
@@ -54,9 +51,9 @@ class Middleman:
             agent (AgentConstruct): the cognitive active agent
 
         Returns:
-            new_triggers (list of str): symbols for each visible object
-            stimuli (list of dict): list with exactly one dict mapping unique stimulus-IDs
-                                  to {'text', 'position', 'color', 'value'}
+            new_triggers (list of str): symbols for each visible object (inkl. Duplikate)
+            stimuli (list of dict): list mit genau einem dict, das fortlaufend
+                                    ge-ID-t Stimuli mappt auf {'text', 'position'}
         """
         matrix = self.experiment_environment.level_matrix
         r, c = self.experiment_environment.find_agent(agent)
@@ -66,7 +63,7 @@ class Middleman:
         agent_map = agent.get_agent_dictionary()
         rows, cols = len(matrix), len(matrix[0])
 
-        # Field of view (los)
+        # Field of view
         los = agent.los
         if los == 0 or los > cols or los > rows:
             x_los, y_los = cols, rows
@@ -75,63 +72,53 @@ class Middleman:
 
         off_y, off_x = y_los // 2, x_los // 2
 
-        # Prepare Rückgabe
         new_triggers = []
-        frame = {}  # Hier sammeln wir alle Stimuli für *ein* Zeitfenster
-
-        # (optional) Für Debug/Visualisierung
+        frame = {}
         visual_stimuli = [['' for _ in range(x_los)] for _ in range(y_los)]
 
+        index = 0
         for i in range(y_los):
             for j in range(x_los):
                 mi, mj = r - off_y + i, c - off_x + j
+
+                # outside the box
                 if mi < 0 or mi >= rows or mj < 0 or mj >= cols:
                     visual_stimuli[i][j] = 'X'
                     continue
 
                 for element in matrix[mi][mj]:
                     if isinstance(element, AgentConstruct):
-                        # Welches Symbol gehört zu diesem Agenten?
                         for sym, info in agent_map.items():
                             if info["agent"] == element:
-                                if sym not in new_triggers:
-                                    new_triggers.append(sym)
-                                frame[sym] = {
+                                new_triggers.append(sym)
+                                frame[index] = {
                                     "text": sym,
-                                    "position": (mi, mj),
-                                    "color": "blue",
-                                    "value": sym
+                                    "position": (mi, mj)
                                 }
                                 visual_stimuli[i][j] = sym
+                                index += 1
                                 break
 
                     elif isinstance(element, Food):
                         sym = 'Y'
-                        if sym not in new_triggers:
-                            new_triggers.append(sym)
-                        frame[sym] = {
+                        new_triggers.append(sym)
+                        frame[index] = {
                             "text": sym,
-                            "position": (mi, mj),
-                            "color": "red",
-                            "value": sym
+                            "position": (mi, mj)
                         }
                         visual_stimuli[i][j] = sym
+                        index += 1
 
                     elif isinstance(element, Wall):
                         sym = 'Z'
-                        if sym not in new_triggers:
-                            new_triggers.append(sym)
-                        frame[sym] = {
+                        new_triggers.append(sym)
+                        frame[index] = {
                             "text": sym,
-                            "position": (mi, mj),
-                            "color": "black",
-                            "value": sym
+                            "position": (mi, mj)
                         }
                         visual_stimuli[i][j] = sym
+                        index += 1
 
-        # Für (optionale) Visualisierung im Agent-Objekt
         agent.visual_stimuli = visual_stimuli
-
-        # PyACT-R erwartet: List[Dict[id → attributes]]
         stimuli = [frame]
         return new_triggers, stimuli

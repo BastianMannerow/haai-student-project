@@ -19,7 +19,7 @@ class BeedrillAdapter:
         self.move_time = random.uniform(3.0, 10.0)
 
     # Extending ACT-R
-    def extending_actr(self, agent_construct):
+    def extending_actr(self):
         """
         Functionality, which extends ACT-R
         In pyactr, ACT-R functionality and regular arithmetic or logical functions are strictly divided.
@@ -30,11 +30,11 @@ class BeedrillAdapter:
             agent_construct (AgentConstruct): Parent of the SocialAgent
         """
 
-        agent_list = agent_construct.middleman.simulation.agent_list
-        other_agent = [agent for agent in agent_list if agent is not agent_construct][0]
+        agent_list = self.agent_construct.middleman.simulation.agent_list
+        other_agent = [agent for agent in agent_list if agent is not self.agent_construct][0]
 
-        r, c = agent_construct.middleman.experiment_environment.find_agent(other_agent)
-        rr, cc = agent_construct.middleman.experiment_environment.find_agent(agent_construct)
+        r, c = self.agent_construct.middleman.experiment_environment.find_agent(other_agent)
+        rr, cc = self.agent_construct.middleman.experiment_environment.find_agent(self.agent_construct)
 
         if (r, c) == (rr, cc):
             raise ValueError("AWWWWWWWWWWWWW IT HURTS")
@@ -42,6 +42,6 @@ class BeedrillAdapter:
         if c > cc:
             print("SUCCESS!")
 
-        agent_construct.actr_time = agent_construct.actr_time + other_agent.actr_time
+        self.agent_construct.actr_time = self.agent_construct.actr_time + other_agent.actr_time
         if other_agent.actr_time > self.move_time:
-            agent_construct.middleman.motor_input("W", agent_construct)
+            self.agent_construct.middleman.motor_input("W", self.agent_construct)

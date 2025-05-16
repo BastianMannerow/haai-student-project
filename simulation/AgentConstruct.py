@@ -27,6 +27,7 @@ class AgentConstruct:
 
     def set_actr_adapter(self, actr_adapter):
         self.actr_adapter = actr_adapter
+        actr_adapter.agent_construct = self
 
     # Important for the agent to distinguish between himself and other agents.
     # It also contains social status associations for each agent.
@@ -80,7 +81,8 @@ class AgentConstruct:
             trace=False)
 
     def actr_extension(self):
-        self.actr_adapter.extending_actr(self)
+        self.actr_adapter.agent_construct = self
+        self.actr_adapter.extending_actr()
 
     # If the agents knowledge changes during the simulation, a new ACT-R simulation needs to be created. This doesn't
     # affect the agent itself, but rather resets the clock, which measures mental processes.

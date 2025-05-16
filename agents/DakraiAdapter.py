@@ -16,7 +16,7 @@ class DakraiAdapter:
         self.agent_construct = agent_construct
 
     # Extending ACT-R
-    def extending_actr(self, agent_construct):
+    def extending_actr(self):
         """
         Functionality, which extends ACT-R
         In pyactr, ACT-R functionality and regular arithmetic or logical functions are strictly divided.
