@@ -112,47 +112,64 @@ def fix_pyactr():
     # Apply patch
     vision.VisualLocation.find = patched_find
 
-def production_fired(agent, production_name): #TODO
-    event = agent_construct.simulation.current_event
-    print(event)
-    return True
+def production_fired(agent):
+    event = agent.simulation.current_event
+    if "RULE FIRED: " in event[2]:
+        return event[2].replace("RULE FIRED: ", "")
+
+    else:
+        return None
 
 
 def set_goal(agent, chunk):
     first_goal = next(iter(agent.goals.values()))
     first_goal.add(chunk)
 
-def get_imaginal(agent, index):
-    goals = agent.goals
-    try:
-        key = next(islice(goals.keys(), index, index + 1))
-        value = next(islice(goals.values(), index, index + 1))
-    except StopIteration:
-        raise IndexError("index out of range")
-
-    print(f"key  #{index}: {key}")
-    print(f"value#{index}: {value}")
-
-
-def set_imaginal(agent, new_chunk, index):
+def get_goal(agent):
     """
-    Fügt `new_chunk` zum Goal an Position `index` in agent.goals hinzu.
-    Das Goal-Objekt muss eine .add()-Methode haben (z.B. ein Set).
+    Gibt das Goal unter dem Schlüssel `key` aus agent.goals zurück.
+    Wenn der Schlüssel nicht existiert, wird eine Meldung ausgegeben.
+    """
+    key = "g"
+    goals = agent.goals
+    # Prüfen, ob der Schlüssel existiert
+    if key not in goals:
+        return None
+
+    # Rückgabe des vorhandenen Chunks
+    value = goals[key]
+    return value
+
+def get_imaginal(agent, key):
+    """
+    Gibt das Goal unter dem Schlüssel `key` aus agent.goals zurück.
+    Wenn der Schlüssel nicht existiert, wird eine Meldung ausgegeben.
     """
     goals = agent.goals
+    if key not in goals:
+        print(f"'{key}' NaN. Available buffers: {list(goals.keys())}")
+        return None
+    value = goals[key]
+    return value
+
+
+def set_imaginal(agent, new_chunk, key):
+    """
+    Fügt `new_chunk` zum Goal unter dem Schlüssel `key` in agent.goals hinzu.
+    Wenn der Schlüssel nicht existiert, wird eine Meldung ausgegeben.
+    """
+    goals = agent.goals
+    # Existenz des Schlüssels prüfen
+    if key not in goals:
+        print(f"Ziel '{key}' nicht vorhanden. Verfügbare Schlüssel: {list(goals.keys())}")
+        return
+
+    # Chunk hinzufügen
+    value = goals[key]
     try:
-        # Schlüssel und Wert an der gewünschten Position ermitteln
-        key = next(islice(goals.keys(), index, index + 1))
-        value = next(islice(goals.values(), index, index + 1))
-    except StopIteration:
-        raise IndexError(f"Index {index} out of range for goals (size={len(goals)})")
-
-    # neues Chunk hinzufügen
-    value.add(new_chunk)
-
-    # Ausgabe zur Kontrolle
-    print(f"key  #{index}: {key}")
-    print(f"value#{index}: {value}")
+        value.add(new_chunk)
+    except AttributeError:
+        raise TypeError(f"Das Goal-Objekt für '{key}' unterstützt keine .add()-Methode.")
 
 def key_pressed(agent_construct):
     """

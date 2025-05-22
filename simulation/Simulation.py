@@ -37,7 +37,7 @@ class Simulation:
 
     def __init__(self):
         # Configuration
-        self.level_type = "Perception & Action 3"
+        self.level_type = "Chunks 2"
         self.focus_position = (0, 2)
         self.print_middleman = False
         self.width = 5
@@ -49,9 +49,9 @@ class Simulation:
         self.los = 0
         self.agent_type_config = {
             "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True},
-            "Beedrill": {"count": 1, "pokedex_id": 15, "print_agent_actions": False}
+            #"Beedrill": {"count": 1, "pokedex_id": 15, "print_agent_actions": False}
             #"Victreebel": {"count": 1, "pokedex_id": 71, "print_agent_actions": False}
-            #"Pinsir": {"count": 1, "pokedex_id": 127, "print_agent_actions": False}
+            "Pinsir": {"count": 1, "pokedex_id": 127, "print_agent_actions": False}
             #"Deoxis": {"count": 1, "pokedex_id": 386, "print_agent_actions": False}
             #"Dakrai": {"count": 1, "pokedex_id": 491, "print_agent_actions": False}
         }
@@ -189,7 +189,7 @@ class Simulation:
                         e) + reset)
             else:
                 print(
-                    blue + f"{agent.name}, {agent.actr_time}, Oh no! Your agent has no production to fire :( Reset to initial goal! " + str(
+                    blue + f"{agent.name}, {agent.actr_time}, Oh no! Your agent seems to be cognitively aimless :( Reset to initial goal! " + str(
                         e) + reset)
             agent.handle_empty_schedule()
             self.root.after_idle(lambda: self.execute_step())

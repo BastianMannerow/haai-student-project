@@ -18,6 +18,7 @@ class AgentConstruct:
         self.name_number = name_number
         self.visual_stimuli = []
         self.los = los
+        self.print_agent_actions = False
 
         self.triggers = [{'S': {'text': 'S', 'position': (1, 1)}}]
         self.stimuli = ['S']
