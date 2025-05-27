@@ -185,3 +185,7 @@ def key_pressed(agent_construct):
         key = None
 
     return key
+
+def update_utility(actr_agent, production_name, utility):
+    productions = actr_agent.productions
+    productions[production_name]["utility"] = utility
