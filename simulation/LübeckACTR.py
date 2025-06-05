@@ -6,6 +6,7 @@ import pyactr as actr
 import pyactr.vision as vision
 from pyactr import chunks, utilities
 from pyactr.utilities import ACTRError
+from simulation.Location import Location
 from collections.abc import MutableSet, MutableSequence
 
 
@@ -189,3 +190,48 @@ def key_pressed(agent_construct):
 def update_utility(actr_agent, production_name, utility):
     productions = actr_agent.productions
     productions[production_name]["utility"] = utility
+
+
+def check_location_damage(agent):
+    """
+    Prüft innerhalb der Sichtweite (los) des gegebenen Agenten, ob sich mindestens ein Location-Objekt befindet.
+    Wenn ja, wird der .damaged-Status dieses Location-Objekts (True/False) zurückgegeben.
+    Falls kein Location-Objekt in Reichweite, wird None zurückgegeben.
+
+    Args:
+        agent (AgentConstruct): Der Agent, dessen Sichtfeld geprüft wird.
+
+    Returns:
+        bool oder None: True/False, wenn eine Location gefunden wurde, sonst None.
+    """
+    matrix = agent.middleman.experiment_environment.level_matrix
+    r, c = agent.middleman.experiment_environment.find_agent(agent)
+    if r is None:
+        return None
+
+    rows, cols = len(matrix), len(matrix[0])
+    los = agent.los
+
+    # Falls los = 0 oder größer als die Kartenmaße, betrachten wir die gesamte Karte
+    if los == 0 or los > rows or los > cols:
+        off_x = off_y = 0
+        x_los, y_los = cols, rows
+    else:
+        off_x = off_y = los
+        x_los = y_los = 2 * los + 1
+
+    for i in range(y_los):
+        for j in range(x_los):
+            mi = r - off_y + i
+            mj = c - off_x + j
+
+            # außerhalb der Karte überspringen
+            if mi < 0 or mi >= rows or mj < 0 or mj >= cols:
+                continue
+
+            # Prüfen, ob in dieser Zelle ein Location-Objekt liegt
+            for element in matrix[mi][mj]:
+                if isinstance(element, Location):
+                    return element.damaged
+
+    return None

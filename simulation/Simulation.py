@@ -35,7 +35,7 @@ class Simulation:
         middleman (Middleman): Translates changes between the environment and the agents
     """
 
-    def __init__(self):
+    def __init__(self, interceptor):
         # Configuration
         self.level_type = "Agent Project"
         self.focus_position = (0, 2)
@@ -63,6 +63,7 @@ class Simulation:
         self.agent_type_returner = AgentTypeReturner()
         self.actr_environment = actr.Environment(focus_position=self.focus_position)
         self.middleman = Middleman(self, self.print_middleman)
+        self.interceptor = interceptor
 
     def agent_builder(self):
         """
