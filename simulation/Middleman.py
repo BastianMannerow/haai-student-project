@@ -1,5 +1,7 @@
 from simulation.Food import Food
 from simulation.Wall import Wall
+from simulation.Water import Water
+from simulation.Location import Location
 from simulation.AgentConstruct import AgentConstruct
 
 class Middleman:
@@ -16,6 +18,8 @@ class Middleman:
         self.simulation = simulation
         self.experiment_environment = None
         self.print_middleman = print_middleman
+        self.check_pending_agent = None
+        self.checked_agents = set()
 
     def set_game_environment(self, experiment_environment):
         """
@@ -28,12 +32,34 @@ class Middleman:
 
     def motor_input(self, key, current_agent):
         """
-        Triggers environment functions based on key input
+        Triggers environment functions based on key input.
+
+        Wenn 'N' und der Agent hat noch nicht geprüft, setzt check_pending_agent.
+        Wenn danach beliebige andere Taste (z.B. 'A'), und check_pending_agent == current_agent,
+        wird check_if_won aufgerufen. Danach normaler Ablauf.
 
         Args:
             key (str): input key
             current_agent (AgentConstruct): the cognitive active agent
         """
+        # 1) Wenn bereits check_pending_agent auf diesen Agenten zeigt,
+        #    löse check_if_won aus statt der normalen Aktion
+        if self.check_pending_agent == current_agent:
+            # Wir wissen: der nächste Tastendruck nach 'N' gehört hierher
+            self.check_if_won(current_agent, key)
+            # Markiere Agent als geprüft, damit 'N' künftig nichts bewirkt
+            self.checked_agents.add(current_agent)
+            # Reset check_pending_agent
+            self.check_pending_agent = None
+            return
+
+        # 2) Wenn Taste 'N' gedrückt und Agent wurde noch nicht geprüft → setze check_pending_agent
+        if key == "N":
+            if current_agent not in self.checked_agents:
+                self.check_pending_agent = current_agent
+            return  # danach keine Bewegung o.ä.
+
+        # 3) Normale Tastenbefehle ausführen
         if key == "W":
             self.experiment_environment.move_agent_top(current_agent)
         elif key == "A":
@@ -42,6 +68,10 @@ class Middleman:
             self.experiment_environment.move_agent_bottom(current_agent)
         elif key == "D":
             self.experiment_environment.move_agent_right(current_agent)
+        elif key == "I":
+            self.experiment_environment.sabotage(current_agent)
+        elif key == "R":
+            self.experiment_environment.repair(current_agent)
 
     def get_agent_stimulus(self, agent):
         """
@@ -65,12 +95,19 @@ class Middleman:
 
         # Field of view
         los = agent.los
-        if los == 0 or los > cols or los > rows:
-            x_los, y_los = cols, rows
-        else:
-            x_los = y_los = los
+        rows, cols = len(matrix), len(matrix[0])
 
-        off_y, off_x = y_los // 2, x_los // 2
+        # Wenn los = 0 oder größer als die Grid‐Dimensionen,
+        # verwenden wir die komplette Karte als Sichtfeld:
+        if los == 0 or los > cols or los > rows:
+            x_los = cols
+            y_los = rows
+            off_x = off_y = 0
+        else:
+            # Fenstergröße = (2*los + 1) in jeder Richtung
+            x_los = y_los = 2 * los + 1
+            # Offset = los, damit Agent genau in der Mitte landet
+            off_x = off_y = los
 
         new_triggers = []
         frame = {}
@@ -79,15 +116,19 @@ class Middleman:
         index = 0
         for i in range(y_los):
             for j in range(x_los):
-                mi, mj = r - off_y + i, c - off_x + j
+                # Karte‐Koordinate = Agenten‐Zeile − off_y + i, Agenten‐Spalte − off_x + j
+                mi = r - off_y + i
+                mj = c - off_x + j
 
-                # outside the box
+                # außerhalb der Karte?
                 if mi < 0 or mi >= rows or mj < 0 or mj >= cols:
-                    visual_stimuli[i][j] = 'X'
+                    visual_stimuli[i][j] = '-'
                     continue
 
+                # Ansonsten: alle Objekte in matrix[mi][mj] betrachten
                 for element in matrix[mi][mj]:
                     if isinstance(element, AgentConstruct):
+                        # Agenten‐Symbol aus agent_map holen
                         for sym, info in agent_map.items():
                             if info["agent"] == element:
                                 new_triggers.append(sym)
@@ -109,7 +150,17 @@ class Middleman:
                         visual_stimuli[i][j] = sym
                         index += 1
 
-                    elif isinstance(element, Wall):
+                    elif isinstance(element, Location):
+                        sym = 'X'
+                        new_triggers.append(sym)
+                        frame[index] = {
+                            "text": sym,
+                            "position": (mi, mj)
+                        }
+                        visual_stimuli[i][j] = sym
+                        index += 1
+
+                    elif isinstance(element, Wall) or isinstance(element, Water):
                         sym = 'Z'
                         new_triggers.append(sym)
                         frame[index] = {
@@ -122,3 +173,31 @@ class Middleman:
         agent.visual_stimuli = visual_stimuli
         stimuli = [frame]
         return new_triggers, stimuli
+
+    def check_if_won(self, agent, key_str):
+        """
+        Wird aufgerufen, wenn ein Agent nach 'N' eine Taste drückt.
+        key_str entspricht dem Buchstaben (z.B. 'A', 'B', ...), der auf einen anderen Agenten zeigt.
+        Wenn der referenzierte Agent den Namen 'Imposter' hat, beendet das Programm mit "YOU WON!!!".
+
+        Args:
+            agent (AgentConstruct): Der Agent, der 'N' gedrückt hatte.
+            key_str (str): Der Buchstabe, der auf einen anderen Agenten verweist.
+        """
+        # 1) Hole das Agenten‐Mapping des ursprünglichen Agenten
+        agent_map = agent.get_agent_dictionary()
+
+        # 2) Prüfen, ob key_str im Dictionary existiert
+        if key_str not in agent_map:
+            # Ungültiger Buchstabe → nichts tun
+            return
+
+        # 3) Das referenzierte Agentenobjekt ermitteln
+        other_agent = agent_map[key_str]["agent"]
+
+        # 4) Prüfen, ob dessen Name "Imposter" ist
+        if other_agent.name == "Imposter":
+            # Simulation beenden mit Fehlermeldung
+            raise RuntimeError("YOU WON!!!")
+        else:
+            raise RuntimeError(f"GAME OVER!!! {other_agent.name} was not the imposter.")

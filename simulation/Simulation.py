@@ -37,21 +37,21 @@ class Simulation:
 
     def __init__(self):
         # Configuration
-        self.level_type = "Chunks 2"
+        self.level_type = "Agent Project"
         self.focus_position = (0, 2)
         self.print_middleman = False
-        self.width = 5
-        self.height = 5
+        self.width = 16
+        self.height = 16
         self.food_amount = 3
         self.wall_density = 0
         self.speed_factor = 50
         self.print_agent_actions = True
-        self.los = 0
+        self.los = 3
         self.agent_type_config = {
             "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True},
             #"Beedrill": {"count": 1, "pokedex_id": 15, "print_agent_actions": False}
             #"Victreebel": {"count": 1, "pokedex_id": 71, "print_agent_actions": False}
-            "Pinsir": {"count": 1, "pokedex_id": 127, "print_agent_actions": False}
+            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": False}
             #"Deoxis": {"count": 1, "pokedex_id": 386, "print_agent_actions": False}
             #"Dakrai": {"count": 1, "pokedex_id": 491, "print_agent_actions": False}
         }
