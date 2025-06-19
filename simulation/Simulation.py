@@ -2,6 +2,8 @@ import random
 
 import simpy
 import tkinter as tk
+
+from gui.Stepper import StepLogWindow
 from simulation import LübeckACTR
 from simulation.Middleman import Middleman
 from simulation.Game import Game
@@ -50,10 +52,10 @@ class Simulation:
         self.los = 3
         self.stepper = True
         self.agent_type_config = {
-            "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True},
+            "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": False},
             #"Beedrill": {"count": 1, "pokedex_id": 15, "print_agent_actions": False}
             #"Victreebel": {"count": 1, "pokedex_id": 71, "print_agent_actions": False}
-            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": True}
+            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": False}
             #"Deoxis": {"count": 1, "pokedex_id": 386, "print_agent_actions": False}
             #"Dakrai": {"count": 1, "pokedex_id": 491, "print_agent_actions": False}
         }
@@ -68,6 +70,8 @@ class Simulation:
         self.interceptor = interceptor
         if self.stepper:
             self.root.bind("<space>", lambda event: self.step_once())
+            self.log_window = StepLogWindow(master=self.root,
+                                            tracer=self.interceptor)
 
     def agent_builder(self):
         """
@@ -234,10 +238,17 @@ class Simulation:
                 key = LübeckACTR.key_pressed(next_agent)
                 if key:
                     self.middleman.motor_input(key, next_agent)
+                # GUI Stepper
+                if getattr(next_agent, "print_agent_actions", self.print_agent_actions):
+                    self.interceptor.trace(next_agent, event)
+                self.log_window.log()
+
 
         except (simpy.core.EmptySchedule, AttributeError, IndexError, RuntimeError) as e:
-            blue = "\033[94m"; reset = "\033[0m"
+            blue = "\033[94m";
+            reset = "\033[0m"
             msg = "terminated" if "has terminated" in str(e) else "cognitively aimless"
-            print(blue + f"{next_agent.name}, {next_agent.actr_time}, Oh no! {msg}! Resetting to initial goal! {e}" + reset)
+            print(
+                blue + f"{next_agent.name}, {next_agent.actr_time}, Oh no! {msg}! Resetting to initial goal! {e}" + reset)
             next_agent.handle_empty_schedule()
         self.notify_gui()
