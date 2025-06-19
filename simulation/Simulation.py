@@ -25,6 +25,7 @@ class Simulation:
         speed_factor (float): In %, the speed of the simulation. 100 is real time cognition of the agents
         print_agent_actions (bool): If False, turn off all agents internal logging simultaniously
         los (int): How far is the line of sight for the agent. 0 = Infinite
+        stepper (bool): If True, run simulation by pressing SPACE step by step
         agent_type_config (dict): .py Class name of your agent, amount and if you want to display their logs
 
         global_sim_time (float): Used for synchronising the gui with the cognition time
@@ -47,11 +48,12 @@ class Simulation:
         self.speed_factor = 50
         self.print_agent_actions = True
         self.los = 3
+        self.stepper = True
         self.agent_type_config = {
             "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": True},
             #"Beedrill": {"count": 1, "pokedex_id": 15, "print_agent_actions": False}
             #"Victreebel": {"count": 1, "pokedex_id": 71, "print_agent_actions": False}
-            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": False}
+            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": True}
             #"Deoxis": {"count": 1, "pokedex_id": 386, "print_agent_actions": False}
             #"Dakrai": {"count": 1, "pokedex_id": 491, "print_agent_actions": False}
         }
@@ -64,6 +66,8 @@ class Simulation:
         self.actr_environment = actr.Environment(focus_position=self.focus_position)
         self.middleman = Middleman(self, self.print_middleman)
         self.interceptor = interceptor
+        if self.stepper:
+            self.root.bind("<space>", lambda event: self.step_once())
 
     def agent_builder(self):
         """
@@ -106,40 +110,36 @@ class Simulation:
             agent.set_actr_construct(actr_construct)
 
     def run_simulation(self):
-        """
-        Initialises the simulation (building agents, middleman and game, then entering execution loop and start gui)
-        """
         self.agent_builder()
         level_matrix = levelbuilder.build_level(
             self.height, self.width, self.agent_list, self.food_amount, self.wall_density, self.level_type
         )
         self.game_environment = Game(self.root, level_matrix)
         self.middleman.set_game_environment(self.game_environment)
-        self.execute_step()
+        if not self.stepper:
+            self.execute_step()
+
         self.root.mainloop()
 
     def execute_step(self):
         """
-        Schedules the agents based on their cognition time. Allows the cognitive fastest agent to step.
+        Schedules the agents based on their cognition time.
+        Im Step-Modus wird hier nicht weiter geplant.
         """
+        if self.stepper:
+            return
 
-        # Refresh agents visual stimuli, to keep their buffers up to date. Can't be moved to other method,
-        # because deadlocks could arise.
+        # Refresh agents visual stimuli
         for agent in self.agent_list:
             agent.update_stimulus()
 
         LübeckACTR.fix_pyactr()
-
-        # Scheduling
         self.agent_list.sort(key=lambda agent: agent.actr_time)
         next_agent = self.agent_list[0]
         delay = next_agent.actr_time - self.global_sim_time
         factor = 100 / self.speed_factor
-        delay_ms = round(delay * factor * 1000)
-        if delay_ms < 1:
-            delay_ms = 1
+        delay_ms = max(1, round(delay * factor * 1000))
 
-        # Execution
         self.root.after(delay_ms, lambda: self.execute_agent_step(next_agent))
 
     def execute_agent_step(self, agent):
@@ -201,3 +201,43 @@ class Simulation:
         """
         if hasattr(self, 'gui'):
             self.gui.update()
+
+    def step_once(self):
+        """
+        ACT-R Stepper implemented
+        """
+        for agent in self.agent_list:
+            agent.update_stimulus()
+
+        LübeckACTR.fix_pyactr()
+        self.agent_list.sort(key=lambda agent: agent.actr_time)
+        next_agent = self.agent_list[0]
+        try:
+            next_agent.simulation.step()
+            event = next_agent.simulation.current_event
+            if event.time > 0 or self.level_type is not None:
+                next_agent.no_increase_count = 0
+            else:
+                next_agent.no_increase_count = getattr(next_agent, "no_increase_count", 0) + 1
+
+            if next_agent.no_increase_count >= 10:
+                print(f"{next_agent.name} removed due to 10 consecutive steps with no actr_time increase.")
+                if next_agent in self.agent_list:
+                    self.agent_list.remove(next_agent)
+                self.game_environment.remove_agent_from_game(next_agent)
+            else:
+                next_agent.actr_time += event.time
+                self.global_sim_time = next_agent.actr_time
+                next_agent.actr_extension()
+                if getattr(next_agent, "print_agent_actions", self.print_agent_actions):
+                    print(f"{next_agent.name}, {next_agent.actr_time}, {event[1]}, {event[2]}")
+                key = LübeckACTR.key_pressed(next_agent)
+                if key:
+                    self.middleman.motor_input(key, next_agent)
+
+        except (simpy.core.EmptySchedule, AttributeError, IndexError, RuntimeError) as e:
+            blue = "\033[94m"; reset = "\033[0m"
+            msg = "terminated" if "has terminated" in str(e) else "cognitively aimless"
+            print(blue + f"{next_agent.name}, {next_agent.actr_time}, Oh no! {msg}! Resetting to initial goal! {e}" + reset)
+            next_agent.handle_empty_schedule()
+        self.notify_gui()
