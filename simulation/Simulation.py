@@ -1,8 +1,6 @@
 import random
-
 import simpy
 import tkinter as tk
-
 from gui.Stepper import StepLogWindow
 from simulation import LübeckACTR
 from simulation.Middleman import Middleman
@@ -53,42 +51,46 @@ class Simulation:
         self.stepper = True
         self.agent_type_config = {
             "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": False},
-            #"Beedrill": {"count": 1, "pokedex_id": 15, "print_agent_actions": False}
-            #"Victreebel": {"count": 1, "pokedex_id": 71, "print_agent_actions": False}
-            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": False}
-            #"Deoxis": {"count": 1, "pokedex_id": 386, "print_agent_actions": False}
-            #"Dakrai": {"count": 1, "pokedex_id": 491, "print_agent_actions": False}
+            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": True}
         }
 
-        # Critical
+        # Critical state
         self.global_sim_time = 0
         self.agent_list = []
-        self.root = tk.Tk()
+        self.interceptor = interceptor
+
+        # Agent & ACT-R environment setup (für agent_builder)
         self.agent_type_returner = AgentTypeReturner()
         self.actr_environment = actr.Environment(focus_position=self.focus_position)
         self.middleman = Middleman(self, self.print_middleman)
-        self.interceptor = interceptor
+
+        # GUI setup
+        self.root = tk.Tk()
         if self.stepper:
-            self.root.bind("<space>", lambda event: self.step_once())
-            self.log_window = StepLogWindow(master=self.root,
-                                            tracer=self.interceptor)
+            self.root.bind("<space>", lambda e: self.step_once())
+            self.log_window = StepLogWindow(
+                master=self.root,
+                tracer=self.interceptor,
+                simulation=self
+            )
+
+        # Jump-State
+        self.jumping = False
+        self.jump_target = None
 
     def agent_builder(self):
-        """
-        Creates all agent objects with its components.
-        """
+        """Creates all agent objects with its components."""
         with open("gui/sprites/pokemon/pokemonNames.txt", 'r') as file:
             names = file.read().splitlines()
         original_names = names.copy()
         random.shuffle(names)
 
-        # Creates agent constructs, which hold all information of one agent.
         for agent_type, config in self.agent_type_config.items():
             count = config["count"]
             print_actions = config.get("print_agent_actions", self.print_agent_actions)
             pokedex_id = config.get("pokedex_id")
 
-            for i in range(count):
+            for _ in range(count):
                 if pokedex_id is not None:
                     name_number = pokedex_id
                     name = original_names[name_number - 1]
@@ -96,17 +98,29 @@ class Simulation:
                     name = names.pop()
                     name_number = original_names.index(name) + 1
 
-                agent = AgentConstruct(agent_type, self.actr_environment, None, self.middleman, name, name_number, self.los)
+                agent = AgentConstruct(
+                    agent_type,
+                    self.actr_environment,
+                    None,
+                    self.middleman,
+                    name,
+                    name_number,
+                    self.los
+                )
                 agent.actr_time = 0
                 agent.print_agent_actions = print_actions
                 self.agent_list.append(agent)
 
-        # Adding more information to the construct, so that one agent is able to distinguish other agents.
         for agent in self.agent_list:
             agent.set_agent_dictionary(self.agent_list)
-            agent_id_list = list(agent.get_agent_dictionary())
-            actr_construct, actr_agent, actr_adapter = self.agent_type_returner.return_agent_type(
-                agent.actr_agent_type_name, self.actr_environment, agent_id_list
+            ids = list(agent.get_agent_dictionary())
+            actr_construct, actr_agent, actr_adapter = (
+                AgentTypeReturner()
+                .return_agent_type(
+                    agent.actr_agent_type_name,
+                    self.actr_environment,
+                    ids
+                )
             )
             agent.set_actr_agent(actr_agent)
             agent.set_actr_adapter(actr_adapter)
@@ -116,7 +130,12 @@ class Simulation:
     def run_simulation(self):
         self.agent_builder()
         level_matrix = levelbuilder.build_level(
-            self.height, self.width, self.agent_list, self.food_amount, self.wall_density, self.level_type
+            self.height,
+            self.width,
+            self.agent_list,
+            self.food_amount,
+            self.wall_density,
+            self.level_type
         )
         self.game_environment = Game(self.root, level_matrix)
         self.middleman.set_game_environment(self.game_environment)
@@ -126,129 +145,114 @@ class Simulation:
         self.root.mainloop()
 
     def execute_step(self):
-        """
-        Schedules the agents based on their cognition time.
-        Im Step-Modus wird hier nicht weiter geplant.
-        """
+        """Schedules agents based on cognition time (non-stepper mode)."""
         if self.stepper:
             return
 
-        # Refresh agents visual stimuli
         for agent in self.agent_list:
             agent.update_stimulus()
 
         LübeckACTR.fix_pyactr()
-        self.agent_list.sort(key=lambda agent: agent.actr_time)
+        self.agent_list.sort(key=lambda a: a.actr_time)
         next_agent = self.agent_list[0]
         delay = next_agent.actr_time - self.global_sim_time
         factor = 100 / self.speed_factor
-        delay_ms = max(1, round(delay * factor * 1000))
-
-        self.root.after(delay_ms, lambda: self.execute_agent_step(next_agent))
+        ms = max(1, round(delay * factor * 1000))
+        self.root.after(ms, lambda: self.execute_agent_step(next_agent))
 
     def execute_agent_step(self, agent):
-        """
-        Executes a cognitive step. Also handles errors like empty schedules (by reset) or inactivity (by removal).
-
-        Args:
-            agent (AgentConstruct): the cognitive active agent
-        """
+        """Executes a cognitive step and handles errors."""
         try:
             agent.simulation.step()
             event = agent.simulation.current_event
 
-            # Measuring cognitive time. Removal after ten cognitive deadlocks
             if event.time > 0 or self.level_type is not None:
                 agent.no_increase_count = 0
             else:
                 agent.no_increase_count = getattr(agent, "no_increase_count", 0) + 1
 
             if agent.no_increase_count >= 10:
-                print(f"{agent.name} removed due to 10 consecutive steps with no actr_time increase.")
-                if agent in self.agent_list:
-                    self.agent_list.remove(agent)
+                print(f"{agent.name} removed due to inactivity.")
+                self.agent_list.remove(agent)
                 self.game_environment.remove_agent_from_game(agent)
             else:
-                # Refresh time for the agent and the global simulation
                 agent.actr_time += event.time
                 self.global_sim_time = agent.actr_time
-
-                # Further execution
                 agent.actr_extension()
-                if getattr(agent, "print_agent_actions", self.print_agent_actions):
-                    print(f"{agent.name}, {agent.actr_time}, {event[1]}, {event[2]}")
+                if agent.print_agent_actions:
+                    print(f"{agent.name}, {agent.actr_time}, {event}")
                 key = LübeckACTR.key_pressed(agent)
                 if key:
                     self.middleman.motor_input(key, agent)
 
-            # Return recursively
             self.execute_step()
 
-        # Error handling
         except (simpy.core.EmptySchedule, AttributeError, IndexError, RuntimeError) as e:
-            blue = "\033[94m"
-            reset = "\033[0m"
-            if "has terminated" in str(e):
-                print(
-                    blue + f"{agent.name}, {agent.actr_time}, Oh no! Your agent's simulation process has terminated. Resetting to initial goal! " + str(
-                        e) + reset)
-            else:
-                print(
-                    blue + f"{agent.name}, {agent.actr_time}, Oh no! Your agent seems to be cognitively aimless :( Reset to initial goal! " + str(
-                        e) + reset)
+            print(f"Error in {agent.name}: {e}")
             agent.handle_empty_schedule()
             self.root.after_idle(lambda: self.execute_step())
 
-    def notify_gui(self):
-        """
-        Causes gui to refresh
-        """
-        if hasattr(self, 'gui'):
-            self.gui.update()
-
     def step_once(self):
-        """
-        ACT-R Stepper implemented
-        """
+        """Performs exactly one cognitive step (stepper mode)."""
         for agent in self.agent_list:
             agent.update_stimulus()
 
         LübeckACTR.fix_pyactr()
-        self.agent_list.sort(key=lambda agent: agent.actr_time)
-        next_agent = self.agent_list[0]
+        self.agent_list.sort(key=lambda a: a.actr_time)
+        na = self.agent_list[0]
         try:
-            next_agent.simulation.step()
-            event = next_agent.simulation.current_event
-            if event.time > 0 or self.level_type is not None:
-                next_agent.no_increase_count = 0
+            na.simulation.step()
+            event = na.simulation.current_event
+            if event.time > 0:
+                na.no_increase_count = 0
             else:
-                next_agent.no_increase_count = getattr(next_agent, "no_increase_count", 0) + 1
+                na.no_increase_count = getattr(na, "no_increase_count", 0) + 1
 
-            if next_agent.no_increase_count >= 10:
-                print(f"{next_agent.name} removed due to 10 consecutive steps with no actr_time increase.")
-                if next_agent in self.agent_list:
-                    self.agent_list.remove(next_agent)
-                self.game_environment.remove_agent_from_game(next_agent)
+            if na.no_increase_count >= 10:
+                print(f"{na.name} removed due to inactivity.")
+                self.agent_list.remove(na)
+                self.game_environment.remove_agent_from_game(na)
             else:
-                next_agent.actr_time += event.time
-                self.global_sim_time = next_agent.actr_time
-                next_agent.actr_extension()
-                if getattr(next_agent, "print_agent_actions", self.print_agent_actions):
-                    print(f"{next_agent.name}, {next_agent.actr_time}, {event[1]}, {event[2]}")
-                key = LübeckACTR.key_pressed(next_agent)
+                na.actr_time += event.time
+                self.global_sim_time = na.actr_time
+                na.actr_extension()
+                if na.print_agent_actions:
+                    print(f"{na.name}, {na.actr_time}, {event}")
+                key = LübeckACTR.key_pressed(na)
                 if key:
-                    self.middleman.motor_input(key, next_agent)
-                # GUI Stepper
-                if getattr(next_agent, "print_agent_actions", self.print_agent_actions):
-                    self.interceptor.trace(next_agent, event)
+                    self.middleman.motor_input(key, na)
+                self.interceptor.trace(na, event)
                 self.log_window.log()
 
-
         except (simpy.core.EmptySchedule, AttributeError, IndexError, RuntimeError) as e:
-            blue = "\033[94m";
-            reset = "\033[0m"
-            msg = "terminated" if "has terminated" in str(e) else "cognitively aimless"
-            print(
-                blue + f"{next_agent.name}, {next_agent.actr_time}, Oh no! {msg}! Resetting to initial goal! {e}" + reset)
-            next_agent.handle_empty_schedule()
-        self.notify_gui()
+            print(f"Error in step_once for {na.name}: {e}")
+            na.handle_empty_schedule()
+        finally:
+            self.notify_gui()
+
+    def start_jump(self, production_name: str):
+        """Starts jumping until the specified production fires (only in stepper mode)."""
+        if not self.stepper:
+            # Jump only available when stepper is active
+            return
+        self.jumping = True
+        self.jump_target = f"RULE FIRED: {production_name}"
+        self._jump_step()
+
+    def _jump_step(self):
+        if not getattr(self, 'jumping', False):
+            return
+        before = len(self.interceptor.records)
+        self.step_once()
+        for r in self.interceptor.records[before:]:
+            if r.get('type') == 'PROCEDURAL' and str(r.get('event')) == self.jump_target:
+                self.jumping = False
+                print(f"✅ Jump completed to {self.jump_target}")
+                return
+        self.root.after(1, self._jump_step)
+
+    def notify_gui(self):
+        """Refreshes GUI elements."""
+        if hasattr(self, 'log_window'):
+            self.log_window.window.update_idletasks()
+            self.log_window.window.update()
