@@ -6,6 +6,9 @@ import pyactr as actr
 import pyactr.vision as vision
 from pyactr import chunks, utilities
 from pyactr.utilities import ACTRError
+
+from simulation import AgentConstruct
+from simulation.AgentConstruct import AgentConstruct
 from simulation.Location import Location
 from collections.abc import MutableSet, MutableSequence
 
@@ -235,3 +238,49 @@ def check_location_damage(agent):
                     return element.damaged
 
     return None
+
+def agents_in_sight(agent):
+    """
+    Prüft im Sichtfeld (los) des gegebenen Agenten, welche anderen Agent-Objekte
+    sich dort befinden. Gibt eine Liste dieser Agent-Objekte zurück oder None,
+    falls kein weiterer Agent in Reichweite ist.
+
+    Args:
+        agent (AgentConstruct): Der Agent, dessen Sichtfeld geprüft wird.
+
+    Returns:
+        list[AgentConstruct] or None: Liste gefundener Agenten oder None.
+    """
+    matrix = agent.middleman.experiment_environment.level_matrix
+    r, c = agent.middleman.experiment_environment.find_agent(agent)
+    if r is None:
+        return None
+
+    rows, cols = len(matrix), len(matrix[0])
+    los = agent.los
+
+    # Bereiche festlegen (bei los=0 bzw. los>Dimension gesamte Karte)
+    if los == 0 or los > rows or los > cols:
+        off_x = off_y = 0
+        x_los, y_los = cols, rows
+    else:
+        off_x = off_y = los
+        x_los = y_los = 2 * los + 1
+
+    found_agents = []
+
+    for i in range(y_los):
+        for j in range(x_los):
+            mi = r - off_y + i
+            mj = c - off_x + j
+
+            # Zelle außerhalb überspringen
+            if mi < 0 or mi >= rows or mj < 0 or mj >= cols:
+                continue
+
+            # In dieser Zelle nach weiteren Agents suchen
+            for element in matrix[mi][mj]:
+                if isinstance(element, AgentConstruct) and element is not agent:
+                    found_agents.append(element)
+
+    return found_agents if found_agents else None

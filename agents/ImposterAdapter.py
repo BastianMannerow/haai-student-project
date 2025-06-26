@@ -14,14 +14,14 @@ class ImposterAdapter:
     """
 
     def __init__(self, agent_construct):
-        self.difficulty = "easy"
+        self.difficulty = "hard"
         self.cognitive_speed = 0.1  # Minimum time between actions
 
-        # Don't touch this
+        # Internal state
         self.agent_construct = agent_construct
         self.last_action_time = getattr(agent_construct, 'actr_time', 0)
-        self.order = None
-        self.target_idx = 0
+        self.order = None            # list of all Location coords
+        self.target = None           # for medium/hard
 
     def _unwrap(self, cell):
         return cell[0] if isinstance(cell, list) and cell else cell
@@ -30,55 +30,18 @@ class ImposterAdapter:
         env = getattr(self.agent_construct, 'middleman', None)
         if not env:
             return
-        env = env.experiment_environment
-        matrix = env.level_matrix
+        matrix = env.experiment_environment.level_matrix
         locs = []
         for i, row in enumerate(matrix):
             for j, raw in enumerate(row):
                 cell = self._unwrap(raw)
                 if isinstance(cell, Location):
                     locs.append((i, j))
-        if not locs:
-            self.order = []
-            return
-        cx = sum(j for _, j in locs) / len(locs)
-        cy = sum(i for i, _ in locs) / len(locs)
-        self.order = sorted(
-            locs,
-            key=lambda p: -math.atan2(p[0] - cy, p[1] - cx)
-        )
-
-    def easy(self):
-        if self.order is None:
-            self._init_locations()
-            if not self.order:
-                return
-        env = self.agent_construct.middleman.experiment_environment
-        matrix = env.level_matrix
-        r, c = env.find_agent(self.agent_construct)
-        tr, tc = self.order[self.target_idx]
-
-        if (r, c) == (tr, tc):
-            damage = LübeckACTR.check_location_damage(self.agent_construct)
-            if not damage:
-                self.agent_construct.middleman.motor_input('I', self.agent_construct)
-            self.target_idx = (self.target_idx + 1) % len(self.order)
-            return
-
-        next_cell = self._bfs_next((r, c), (tr, tc), matrix)
-        if not next_cell:
-            self.target_idx = (self.target_idx + 1) % len(self.order)
-            return
-        nr, nc = next_cell
-        dr, dc = nr - r, nc - c
-        key = {(1,0): 'S', (-1,0): 'W', (0,1): 'D', (0,-1): 'A'}.get((dr, dc))
-        if key is None:
-            return
-        self.agent_construct.middleman.motor_input(key, self.agent_construct)
+        self.order = locs
 
     def _bfs_next(self, start, goal, matrix):
         from collections import deque
-        visited = set([start])
+        visited = {start}
         queue = deque([(start, None)])
         while queue:
             (r, c), first = queue.popleft()
@@ -86,38 +49,106 @@ class ImposterAdapter:
                 nr, nc = r+dr, c+dc
                 if not (0 <= nr < len(matrix) and 0 <= nc < len(matrix[0])):
                     continue
+                if (nr, nc) in visited:
+                    continue
                 cell = self._unwrap(matrix[nr][nc])
-                if isinstance(cell, (Wall, Water)) or (nr, nc) in visited:
+                if isinstance(cell, (Wall, Water)):
                     continue
                 visited.add((nr, nc))
-                first_step = first or (nr, nc)
+                step = first or (nr, nc)
                 if (nr, nc) == goal:
-                    return first_step
-                queue.append(((nr, nc), first_step))
+                    return step
+                queue.append(((nr, nc), step))
         return None
 
+    def _get_unsabotaged(self):
+        env = self.agent_construct.middleman.experiment_environment
+        matrix = env.level_matrix
+        return [(i, j) for (i,j) in self.order
+                if not getattr(self._unwrap(matrix[i][j]), 'damaged', False)]
+
+    def easy(self):
+        if self.order is None:
+            self._init_locations()
+        unsabotaged = self._get_unsabotaged()
+        if not unsabotaged:
+            return
+        env = self.agent_construct.middleman.experiment_environment
+        matrix = env.level_matrix
+        r, c = env.find_agent(self.agent_construct)
+        # nearest
+        tr, tc = min(unsabotaged, key=lambda p: abs(p[0]-r)+abs(p[1]-c))
+        if (r, c) == (tr, tc):
+            if not LübeckACTR.check_location_damage(self.agent_construct):
+                self.agent_construct.middleman.motor_input('I', self.agent_construct)
+        else:
+            step = self._bfs_next((r,c),(tr,tc),matrix)
+            if step:
+                dr, dc = step[0]-r, step[1]-c
+                key = {(1,0):'S',(-1,0):'W',(0,1):'D',(0,-1):'A'}.get((dr,dc))
+                if key:
+                    self.agent_construct.middleman.motor_input(key, self.agent_construct)
+
     def medium(self):
-        pass
+        if self.order is None:
+            self._init_locations()
+        unsabotaged = self._get_unsabotaged()
+        if not unsabotaged:
+            return
+        env = self.agent_construct.middleman.experiment_environment
+        r, c = env.find_agent(self.agent_construct)
+        # pick new random if needed
+        if self.target not in unsabotaged:
+            self.target = random.choice(unsabotaged)
+        tr, tc = self.target
+        # if at target
+        if (r, c) == (tr, tc):
+            if not getattr(env, 'cage', {}).get(self.agent_construct):
+                if not LübeckACTR.check_location_damage(self.agent_construct):
+                    self.agent_construct.middleman.motor_input('I', self.agent_construct)
+                self.target = None
+            return
+        # move
+        matrix = env.level_matrix
+        step = self._bfs_next((r,c),(tr,tc),matrix)
+        if step:
+            dr, dc = step[0]-r, step[1]-c
+            key = {(1,0):'S',(-1,0):'W',(0,1):'D',(0,-1):'A'}.get((dr,dc))
+            if key:
+                self.agent_construct.middleman.motor_input(key, self.agent_construct)
 
     def hard(self):
-        pass
+        if self.order is None:
+            self._init_locations()
+        unsabotaged = self._get_unsabotaged()
+        if not unsabotaged:
+            return
+        env = self.agent_construct.middleman.experiment_environment
+        r, c = env.find_agent(self.agent_construct)
+        if self.target not in unsabotaged:
+            self.target = random.choice(unsabotaged)
+        tr, tc = self.target
+        # at target
+        if (r, c) == (tr, tc):
+            if not getattr(env, 'cage', {}).get(self.agent_construct):
+                if not LübeckACTR.agents_in_sight(self.agent_construct):
+                    if not LübeckACTR.check_location_damage(self.agent_construct):
+                        self.agent_construct.middleman.motor_input('I', self.agent_construct)
+                    self.target = None
+            return
+        # move
+        matrix = env.level_matrix
+        step = self._bfs_next((r,c),(tr,tc),matrix)
+        if step:
+            dr, dc = step[0]-r, step[1]-c
+            key = {(1,0):'S',(-1,0):'W',(0,1):'D',(0,-1):'A'}.get((dr,dc))
+            if key:
+                self.agent_construct.middleman.motor_input(key, self.agent_construct)
 
     def extending_actr(self):
-        env = getattr(self.agent_construct, 'middleman', None)
-        if not env:
-            return
-        env = env.experiment_environment
-        if hasattr(env, 'cage') and self.agent_construct in env.cage:
-            current = getattr(self.agent_construct, 'actr_time', None)
-            if current is not None:
-                self.last_action_time = current
-            return
         current_time = getattr(self.agent_construct, 'actr_time', None)
         if current_time is None or current_time - self.last_action_time < self.cognitive_speed:
             return
         self.last_action_time = current_time
         funcs = {'easy': self.easy, 'medium': self.medium, 'hard': self.hard}
-        func = funcs.get(self.difficulty)
-        if not func:
-            raise ValueError(f"Unknown difficulty: {self.difficulty}")
-        func()
+        funcs.get(self.difficulty, lambda: (_ for _ in ()).throw(ValueError(f"Unknown difficulty: {self.difficulty}")))()
