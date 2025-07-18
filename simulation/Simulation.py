@@ -50,8 +50,11 @@ class Simulation:
         self.los = 3
         self.stepper = True
         self.agent_type_config = {
-            "Mew": {"count": 1, "pokedex_id": 151, "print_agent_actions": False},
-            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": True}
+            "Imposter": {"count": 1, "pokedex_id": 647, "print_agent_actions": False},
+            "Chatot": {"count": 1, "pokedex_id": 441, "print_agent_actions": True},  # Tom
+            #"Hoothoot": {"count": 1, "pokedex_id": 163, "print_agent_actions": True},  # Christoh
+            #"Charmander": {"count": 1, "pokedex_id": 4, "print_agent_actions": True},  # Yannik
+            #"Gengar": {"count": 1, "pokedex_id": 94, "print_agent_actions": True}  # Pascal
         }
 
         # Critical state

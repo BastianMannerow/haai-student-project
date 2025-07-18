@@ -14,9 +14,9 @@ class ImposterAdapter:
     """
 
     def __init__(self, agent_construct):
-        self.difficulty = "hard"
-        self.cognitive_speed = 0.1  # Minimum time between actions
-
+        self.difficulty = "easy"
+        self.cognitive_speed = 2  # Minimum time between actions
+        # 20 bei Tom
         # Internal state
         self.agent_construct = agent_construct
         self.last_action_time = getattr(agent_construct, 'actr_time', 0)

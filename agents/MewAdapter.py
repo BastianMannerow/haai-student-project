@@ -24,7 +24,4 @@ class MewAdapter:
         The reason for that is a clearer understanding of the agents' behaviour.
         This method will supervise the internal state of the agent.
         """
-        #actr_agent = self.agent_construct.actr_agent
-        #LübeckACTR.set_imaginal(actr_agent, actr.chunkstring(
-        #            string=f"isa test state testtest"), 2)
-        #LübeckACTR.get_imaginal(actr_agent, actr.chunkstring(self.agent_construct.actr_agent, 2))
+        pass

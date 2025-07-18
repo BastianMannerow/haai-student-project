@@ -208,8 +208,8 @@ def build_agent_project(height, width, agents, food_amount, wall_density):
 
     # 1. Prüfen: Mindestens ein 'Imposter' und mindestens ein anderer Agent
     imposter = next((a for a in agents if a.name == 'Imposter'), None)
-    if imposter is None:
-        raise ValueError("Für 'Agent Project' muss mindestens ein Agent mit dem Namen 'Imposter' existieren.")
+    #if imposter is None:
+    #    raise ValueError("Für 'Agent Project' muss mindestens ein Agent mit dem Namen 'Imposter' existieren.")
     others = [a for a in agents if a.name != 'Imposter']
     if len(others) < 1:
         raise ValueError("Für 'Agent Project' muss es mindestens einen weiteren Agenten neben 'Imposter' geben.")
